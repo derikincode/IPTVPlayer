@@ -1,9 +1,8 @@
-// src/navigation/AppNavigator.tsx - VERSÃO CORRIGIDA
 import React from 'react';
-import { Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import AppIcon from '../components/AppIcon';
 
 // Import screens
 import LoginScreen from '../screens/LoginScreen';
@@ -37,7 +36,9 @@ const TabNavigator = () => {
         component={HomeScreen}
         options={{
           tabBarLabel: 'Início',
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>🏠</Text>,
+          tabBarIcon: ({ color, size }) => (
+            <AppIcon name="home" size={size} color={color} />
+          ),
         }}
       />
       <Tab.Screen
@@ -45,7 +46,9 @@ const TabNavigator = () => {
         component={LiveTVScreen}
         options={{
           tabBarLabel: 'Ao Vivo',
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>📺</Text>,
+          tabBarIcon: ({ color, size }) => (
+            <AppIcon name="tv" library="ionicons" size={size} color={color} />
+          ),
         }}
       />
       <Tab.Screen
@@ -53,7 +56,9 @@ const TabNavigator = () => {
         component={MoviesScreen}
         options={{
           tabBarLabel: 'Filmes',
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>🎬</Text>,
+          tabBarIcon: ({ color, size }) => (
+            <AppIcon name="movie" size={size} color={color} />
+          ),
         }}
       />
       <Tab.Screen
@@ -61,7 +66,9 @@ const TabNavigator = () => {
         component={SeriesScreen}
         options={{
           tabBarLabel: 'Séries',
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>📺</Text>,
+          tabBarIcon: ({ color, size }) => (
+            <AppIcon name="tv-outline" library="ionicons" size={size} color={color} />
+          ),
         }}
       />
       <Tab.Screen
@@ -69,7 +76,9 @@ const TabNavigator = () => {
         component={SearchScreen}
         options={{
           tabBarLabel: 'Buscar',
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>🔍</Text>,
+          tabBarIcon: ({ color, size }) => (
+            <AppIcon name="search" size={size} color={color} />
+          ),
         }}
       />
     </Tab.Navigator>

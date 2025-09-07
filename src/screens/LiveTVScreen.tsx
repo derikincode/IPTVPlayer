@@ -1,4 +1,3 @@
-// src/screens/LiveTVScreen.tsx - CORRIGIDO
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -15,10 +14,11 @@ import StorageService from '../services/StorageService';
 import CategoryCard from '../components/CategoryCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import OfflineMessage from '../components/OfflineMessage';
+import { getCategoryIcon } from '../utils/iconConfig';
 import { Category, M3UChannel } from '../types';
 
 const LiveTVScreen: React.FC = () => {
-  const navigation = useNavigation<any>(); // Correção da tipagem
+  const navigation = useNavigation<any>();
   const [loading, setLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(true);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -95,12 +95,19 @@ const LiveTVScreen: React.FC = () => {
       <FlatList
         data={categories}
         keyExtractor={(item) => item.category_id}
-        renderItem={({ item }) => (
-          <CategoryCard
-            title={item.category_name}
-            onPress={() => handleCategoryPress(item.category_id, item.category_name)}
-          />
-        )}
+        renderItem={({ item }) => {
+          // Obtém o ícone baseado no nome da categoria
+          const iconConfig = getCategoryIcon(item.category_name, 'live');
+          
+          return (
+            <CategoryCard
+              title={item.category_name}
+              onPress={() => handleCategoryPress(item.category_id, item.category_name)}
+              iconName={iconConfig.name}
+              iconLibrary={iconConfig.library}
+            />
+          );
+        }}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
       />
@@ -122,13 +129,20 @@ const LiveTVScreen: React.FC = () => {
       <FlatList
         data={categoryNames}
         keyExtractor={(item) => item}
-        renderItem={({ item }) => (
-          <CategoryCard
-            title={item}
-            subtitle={`${m3uCategories[item].length} canais`}
-            onPress={() => handleM3UCategoryPress(item, m3uCategories[item])}
-          />
-        )}
+        renderItem={({ item }) => {
+          // Obtém o ícone baseado no nome da categoria
+          const iconConfig = getCategoryIcon(item, 'live');
+          
+          return (
+            <CategoryCard
+              title={item}
+              subtitle={`${m3uCategories[item].length} canais`}
+              onPress={() => handleM3UCategoryPress(item, m3uCategories[item])}
+              iconName={iconConfig.name}
+              iconLibrary={iconConfig.library}
+            />
+          );
+        }}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
       />

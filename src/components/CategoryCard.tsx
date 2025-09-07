@@ -7,6 +7,7 @@ import {
   Animated,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import AppIcon from './AppIcon';
 import { COLORS, SIZES, TYPOGRAPHY } from '../utils/constants';
 
 interface CategoryCardProps {
@@ -14,7 +15,8 @@ interface CategoryCardProps {
   subtitle?: string;
   itemCount?: number;
   onPress: () => void;
-  icon?: string;
+  iconName?: string;
+  iconLibrary?: 'material' | 'ionicons' | 'fontawesome' | 'materialcommunity';
   gradient?: boolean;
 }
 
@@ -23,7 +25,8 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
   subtitle,
   itemCount,
   onPress,
-  icon = '📁',
+  iconName = 'folder',
+  iconLibrary = 'material',
   gradient = false,
 }) => {
   const scaleValue = new Animated.Value(1);
@@ -45,7 +48,12 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
   const CardContent = () => (
     <View style={styles.cardContent}>
       <View style={styles.iconContainer}>
-        <Text style={styles.icon}>{icon}</Text>
+        <AppIcon 
+          name={iconName} 
+          library={iconLibrary}
+          size={24} 
+          color="#fff" 
+        />
       </View>
       <View style={styles.textContainer}>
         <Text style={styles.title} numberOfLines={1}>
@@ -63,7 +71,11 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
         )}
       </View>
       <View style={styles.arrowContainer}>
-        <Text style={styles.arrow}>›</Text>
+        <AppIcon 
+          name="chevron-right" 
+          size={20} 
+          color={COLORS.TEXT_MUTED} 
+        />
       </View>
     </View>
   );
@@ -125,9 +137,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: SIZES.PADDING,
   },
-  icon: {
-    fontSize: 22,
-  },
   textContainer: {
     flex: 1,
   },
@@ -150,11 +159,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     width: 30,
-  },
-  arrow: {
-    color: COLORS.TEXT_MUTED,
-    fontSize: 24,
-    fontWeight: TYPOGRAPHY.FONT_WEIGHT_BOLD,
   },
 });
 

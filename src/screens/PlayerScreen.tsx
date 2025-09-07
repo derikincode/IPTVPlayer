@@ -1,4 +1,3 @@
-// src/screens/PlayerScreen.tsx - CORRIGIDO
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -10,9 +9,9 @@ import {
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import Video, { VideoRef } from 'react-native-video';
-// import Orientation from 'react-native-orientation-locker'; // Comentado até instalar
 import StorageService from '../services/StorageService';
 import XtreamAPI from '../services/XtreamAPI';
+import AppIcon from '../components/AppIcon';
 import { EPGData } from '../types';
 
 interface RouteParams {
@@ -24,9 +23,9 @@ interface RouteParams {
 
 const PlayerScreen: React.FC = () => {
   const route = useRoute();
-  const navigation = useNavigation<any>(); // Correção da tipagem
+  const navigation = useNavigation<any>();
   const { url, title, type, streamId } = route.params as RouteParams;
-const videoRef = useRef<VideoRef>(null);
+  const videoRef = useRef<VideoRef>(null);
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -97,10 +96,8 @@ const videoRef = useRef<VideoRef>(null);
 
   const toggleFullscreen = () => {
     if (isFullscreen) {
-      // Orientation.lockToPortrait(); // Comentado até instalar
       setIsFullscreen(false);
     } else {
-      // Orientation.lockToLandscape(); // Comentado até instalar
       setIsFullscreen(true);
     }
   };
@@ -137,11 +134,13 @@ const videoRef = useRef<VideoRef>(null);
   if (error) {
     return (
       <View style={styles.errorContainer}>
+        <AppIcon name="error" size={64} color="#dc3545" style={styles.errorIcon} />
         <Text style={styles.errorText}>Erro ao reproduzir conteúdo</Text>
         <TouchableOpacity
           style={styles.retryButton}
           onPress={() => setError(false)}
         >
+          <AppIcon name="refresh" size={18} color="#fff" style={styles.retryIcon} />
           <Text style={styles.retryButtonText}>Tentar Novamente</Text>
         </TouchableOpacity>
       </View>
@@ -178,6 +177,7 @@ const videoRef = useRef<VideoRef>(null);
 
         {loading && (
           <View style={styles.loadingOverlay}>
+            <AppIcon name="refresh" size={32} color="#007AFF" />
             <Text style={styles.loadingText}>Carregando...</Text>
           </View>
         )}
@@ -189,7 +189,7 @@ const videoRef = useRef<VideoRef>(null);
                 style={styles.backButton}
                 onPress={() => navigation.goBack()}
               >
-                <Text style={styles.backButtonText}>←</Text>
+                <AppIcon name="arrow-back" size={24} color="#fff" />
               </TouchableOpacity>
               <View style={styles.titleContainer}>
                 <Text style={styles.videoTitle} numberOfLines={1}>
@@ -205,9 +205,11 @@ const videoRef = useRef<VideoRef>(null);
                 style={styles.fullscreenButton}
                 onPress={toggleFullscreen}
               >
-                <Text style={styles.fullscreenButtonText}>
-                  {isFullscreen ? '⤢' : '⤡'}
-                </Text>
+                <AppIcon 
+                  name={isFullscreen ? "fullscreen-exit" : "fullscreen"} 
+                  size={24} 
+                  color="#fff" 
+                />
               </TouchableOpacity>
             </View>
 
@@ -216,9 +218,11 @@ const videoRef = useRef<VideoRef>(null);
                 style={styles.playButton}
                 onPress={togglePlayPause}
               >
-                <Text style={styles.playButtonText}>
-                  {paused ? '▶' : '⏸'}
-                </Text>
+                <AppIcon 
+                  name={paused ? "play-arrow" : "pause"} 
+                  size={32} 
+                  color="#fff" 
+                />
               </TouchableOpacity>
               
               {type === 'vod' && (
@@ -235,20 +239,26 @@ const videoRef = useRef<VideoRef>(null);
 
       {!isFullscreen && currentProgram && (
         <View style={styles.epgContainer}>
-          <Text style={styles.epgTitle}>Programa Atual</Text>
+          <View style={styles.epgHeader}>
+            <AppIcon name="tv" library="ionicons" size={20} color="#007AFF" />
+            <Text style={styles.epgTitle}>Programa Atual</Text>
+          </View>
           <Text style={styles.epgProgramTitle}>{currentProgram.title}</Text>
           <Text style={styles.epgDescription} numberOfLines={3}>
             {currentProgram.description}
           </Text>
-          <Text style={styles.epgTime}>
-            {new Date(parseInt(currentProgram.start_timestamp) * 1000).toLocaleTimeString('pt-BR', {
-              hour: '2-digit',
-              minute: '2-digit'
-            })} - {new Date(parseInt(currentProgram.stop_timestamp) * 1000).toLocaleTimeString('pt-BR', {
-              hour: '2-digit',
-              minute: '2-digit'
-            })}
-          </Text>
+          <View style={styles.epgTimeContainer}>
+            <AppIcon name="schedule" size={16} color="#007AFF" />
+            <Text style={styles.epgTime}>
+              {new Date(parseInt(currentProgram.start_timestamp) * 1000).toLocaleTimeString('pt-BR', {
+                hour: '2-digit',
+                minute: '2-digit'
+              })} - {new Date(parseInt(currentProgram.stop_timestamp) * 1000).toLocaleTimeString('pt-BR', {
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+            </Text>
+          </View>
         </View>
       )}
     </View>
@@ -280,6 +290,7 @@ const styles = StyleSheet.create({
   loadingText: {
     color: '#fff',
     fontSize: 16,
+    marginTop: 10,
   },
   controlsOverlay: {
     position: 'absolute',
@@ -303,10 +314,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     borderRadius: 20,
   },
-  backButtonText: {
-    color: '#fff',
-    fontSize: 20,
-  },
   titleContainer: {
     flex: 1,
     marginHorizontal: 15,
@@ -329,10 +336,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     borderRadius: 20,
   },
-  fullscreenButtonText: {
-    color: '#fff',
-    fontSize: 18,
-  },
   bottomControls: {
     position: 'absolute',
     bottom: 30,
@@ -349,10 +352,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.7)',
     borderRadius: 25,
   },
-  playButtonText: {
-    color: '#fff',
-    fontSize: 20,
-  },
   progressContainer: {
     flex: 1,
     marginLeft: 15,
@@ -365,11 +364,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#2a2a2a',
     padding: 15,
   },
+  epgHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   epgTitle: {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 5,
+    marginLeft: 8,
   },
   epgProgramTitle: {
     color: '#fff',
@@ -381,17 +385,25 @@ const styles = StyleSheet.create({
     color: '#ccc',
     fontSize: 12,
     lineHeight: 16,
-    marginBottom: 5,
+    marginBottom: 8,
+  },
+  epgTimeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   epgTime: {
     color: '#007AFF',
     fontSize: 12,
+    marginLeft: 5,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#1a1a1a',
+  },
+  errorIcon: {
+    marginBottom: 20,
   },
   errorText: {
     color: '#fff',
@@ -404,6 +416,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  retryIcon: {
+    marginRight: 8,
   },
   retryButtonText: {
     color: '#fff',

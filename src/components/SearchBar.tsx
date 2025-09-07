@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Text,
 } from 'react-native';
+import AppIcon from './AppIcon';
 
 interface SearchBarProps {
   placeholder?: string;
@@ -36,7 +37,12 @@ const SearchBar: React.FC<SearchBarProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.inputContainer}>
-        <Text style={styles.searchIcon}>🔍</Text>
+        <AppIcon 
+          name="search" 
+          size={18} 
+          color="#666" 
+          style={styles.searchIcon}
+        />
         <TextInput
           ref={inputRef}
           style={styles.input}
@@ -54,7 +60,11 @@ const SearchBar: React.FC<SearchBarProps> = ({
             style={styles.clearButton}
             onPress={handleClear}
           >
-            <Text style={styles.clearIcon}>✕</Text>
+            <AppIcon 
+              name="close" 
+              size={16} 
+              color="#666" 
+            />
           </TouchableOpacity>
         )}
       </View>
@@ -91,7 +101,6 @@ const styles = StyleSheet.create({
     height: 50,
   },
   searchIcon: {
-    fontSize: 16,
     marginRight: 10,
   },
   input: {
@@ -101,10 +110,6 @@ const styles = StyleSheet.create({
   },
   clearButton: {
     padding: 5,
-  },
-  clearIcon: {
-    color: '#666',
-    fontSize: 14,
   },
   searchButton: {
     backgroundColor: '#007AFF',
