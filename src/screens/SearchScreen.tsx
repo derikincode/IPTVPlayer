@@ -1,4 +1,3 @@
-// src/screens/SearchScreen.tsx - CORRIGIDO
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -24,7 +23,7 @@ interface SearchResult {
 }
 
 const SearchScreen: React.FC = () => {
-  const navigation = useNavigation<any>(); // CORREÇÃO: Tipagem
+  const navigation = useNavigation<any>();
   const [loading, setLoading] = useState(false);
   const [isConnected, setIsConnected] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -111,7 +110,7 @@ const SearchScreen: React.FC = () => {
 
     if (type === 'm3u') {
       const m3uItem = item as M3UChannel;
-      navigation.navigate('Player', { // CORREÇÃO: Removido "as never"
+      navigation.navigate('Player', {
         url: m3uItem.url,
         title: m3uItem.name,
         type: 'live',
@@ -119,7 +118,7 @@ const SearchScreen: React.FC = () => {
     } else if (type === 'live') {
       const stream = item as LiveStream;
       const url = XtreamAPI.getStreamURL(stream.stream_id);
-      navigation.navigate('Player', { // CORREÇÃO: Removido "as never"
+      navigation.navigate('Player', {
         url,
         title: stream.name,
         type: 'live',
@@ -128,7 +127,7 @@ const SearchScreen: React.FC = () => {
     } else if (type === 'vod') {
       const stream = item as VODStream;
       const url = XtreamAPI.getVODURL(stream.stream_id, stream.container_extension);
-      navigation.navigate('Player', { // CORREÇÃO: Removido "as never"
+      navigation.navigate('Player', {
         url,
         title: stream.name,
         type: 'vod',
