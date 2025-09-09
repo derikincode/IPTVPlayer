@@ -75,7 +75,7 @@ const TabNavigator = () => {
         options={{
           tabBarLabel: 'Séries',
           tabBarIcon: ({ color, size }) => (
-            <Icon name="library" size={size} color={color} />
+            <Icon name="videocam" size={size} color={color} />
           ),
         }}
       />
