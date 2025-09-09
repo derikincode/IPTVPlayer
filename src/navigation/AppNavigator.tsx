@@ -1,8 +1,9 @@
+// src/navigation/AppNavigator.tsx - COM ÍCONES REACT NATIVE
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import AppIcon from '../components/AppIcon';
+import Icon from 'react-native-vector-icons/Ionicons';
 
 // Import screens
 import LoginScreen from '../screens/LoginScreen';
@@ -26,9 +27,16 @@ const TabNavigator = () => {
           backgroundColor: '#2a2a2a',
           borderTopColor: '#333',
           borderTopWidth: 1,
+          height: 80,
+          paddingBottom: 10,
+          paddingTop: 10,
         },
         tabBarActiveTintColor: '#007AFF',
         tabBarInactiveTintColor: '#666',
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '500',
+        },
       }}
     >
       <Tab.Screen
@@ -37,7 +45,7 @@ const TabNavigator = () => {
         options={{
           tabBarLabel: 'Início',
           tabBarIcon: ({ color, size }) => (
-            <AppIcon name="home" size={size} color={color} />
+            <Icon name="home" size={size} color={color} />
           ),
         }}
       />
@@ -47,7 +55,7 @@ const TabNavigator = () => {
         options={{
           tabBarLabel: 'Ao Vivo',
           tabBarIcon: ({ color, size }) => (
-            <AppIcon name="tv" library="ionicons" size={size} color={color} />
+            <Icon name="tv" size={size} color={color} />
           ),
         }}
       />
@@ -57,7 +65,7 @@ const TabNavigator = () => {
         options={{
           tabBarLabel: 'Filmes',
           tabBarIcon: ({ color, size }) => (
-            <AppIcon name="movie" size={size} color={color} />
+            <Icon name="film" size={size} color={color} />
           ),
         }}
       />
@@ -67,7 +75,7 @@ const TabNavigator = () => {
         options={{
           tabBarLabel: 'Séries',
           tabBarIcon: ({ color, size }) => (
-            <AppIcon name="tv-outline" library="ionicons" size={size} color={color} />
+            <Icon name="library" size={size} color={color} />
           ),
         }}
       />
@@ -77,7 +85,7 @@ const TabNavigator = () => {
         options={{
           tabBarLabel: 'Buscar',
           tabBarIcon: ({ color, size }) => (
-            <AppIcon name="search" size={size} color={color} />
+            <Icon name="search" size={size} color={color} />
           ),
         }}
       />

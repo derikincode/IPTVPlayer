@@ -1,4 +1,4 @@
-// src/screens/CategoryScreen.tsx - COMPLETO E CORRIGIDO
+// src/screens/CategoryScreen.tsx - COM ÍCONES REACT NATIVE
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -6,11 +6,14 @@ import {
   FlatList,
   StyleSheet,
   Alert,
+  TouchableOpacity,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import NetInfo from '@react-native-community/netinfo';
+import Icon from 'react-native-vector-icons/Ionicons';
 import XtreamAPI from '../services/XtreamAPI';
 import ChannelItem from '../components/ChannelItem';
+import SearchBar from '../components/SearchBar';
 import LoadingSpinner from '../components/LoadingSpinner';
 import OfflineMessage from '../components/OfflineMessage';
 import { LiveStream, VODStream, Series, M3UChannel } from '../types';
@@ -29,7 +32,10 @@ const CategoryScreen: React.FC = () => {
   
   const [loading, setLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(true);
-  const [items, setItems] = useState<(LiveStream | VODStream | Series | M3UChannel)[]>([]);
+  const [allItems, setAllItems] = useState<(LiveStream | VODStream | Series | M3UChannel)[]>([]);
+  const [filteredItems, setFilteredItems] = useState<(LiveStream | VODStream | Series | M3UChannel)[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener(state => {
@@ -41,12 +47,17 @@ const CategoryScreen: React.FC = () => {
 
   useEffect(() => {
     if (type === 'm3u' && channels) {
-      setItems(channels);
+      setAllItems(channels);
+      setFilteredItems(channels);
       setLoading(false);
     } else {
       loadItems();
     }
   }, []);
+
+  useEffect(() => {
+    filterItems();
+  }, [searchQuery, allItems]);
 
   const loadItems = async () => {
     setLoading(true);
@@ -65,13 +76,43 @@ const CategoryScreen: React.FC = () => {
           break;
       }
 
-      setItems(data);
+      setAllItems(data);
+      setFilteredItems(data);
     } catch (error) {
       console.error('Erro ao carregar itens:', error);
       Alert.alert('Erro', 'Falha ao carregar conteúdo');
     } finally {
       setLoading(false);
     }
+  };
+
+  const filterItems = () => {
+    if (!searchQuery.trim()) {
+      setFilteredItems(allItems);
+      return;
+    }
+
+    const query = searchQuery.toLowerCase();
+    const filtered = allItems.filter((item: any) => {
+      if (type === 'm3u') {
+        const m3uItem = item as M3UChannel;
+        return m3uItem.name.toLowerCase().includes(query) ||
+               (m3uItem.group && m3uItem.group.toLowerCase().includes(query));
+      } else if (type === 'live') {
+        const stream = item as LiveStream;
+        return stream.name.toLowerCase().includes(query);
+      } else if (type === 'vod') {
+        const stream = item as VODStream;
+        return stream.name.toLowerCase().includes(query);
+      } else if (type === 'series') {
+        const serie = item as Series;
+        return serie.name.toLowerCase().includes(query) ||
+               (serie.genre && serie.genre.toLowerCase().includes(query));
+      }
+      return false;
+    });
+
+    setFilteredItems(filtered);
   };
 
   const handleItemPress = (item: any) => {
@@ -104,6 +145,33 @@ const CategoryScreen: React.FC = () => {
       const serie = item as Series;
       Alert.alert('Série', `${serie.name}\n\n${serie.plot}`);
     }
+  };
+
+  const toggleSearch = () => {
+    setShowSearch(!showSearch);
+    if (showSearch) {
+      setSearchQuery('');
+    }
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+  };
+
+  const renderSearchBar = () => {
+    if (!showSearch) return null;
+
+    return (
+      <View style={styles.searchContainer}>
+        <SearchBar
+          placeholder={`Buscar em ${categoryName}...`}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          autoFocus={true}
+          compact={true}
+        />
+      </View>
+    );
   };
 
   const renderItem = ({ item }: { item: any }) => {
@@ -154,6 +222,19 @@ const CategoryScreen: React.FC = () => {
     return `item_${index}`;
   };
 
+  const getItemCountText = () => {
+    const total = allItems.length;
+    const filtered = filteredItems.length;
+    
+    if (searchQuery && filtered !== total) {
+      return `${filtered} de ${total} ${type === 'live' || type === 'm3u' ? 'canais' : 
+               type === 'vod' ? 'filmes' : 'séries'}`;
+    }
+    
+    return `${total} ${type === 'live' || type === 'm3u' ? 'canais' : 
+            type === 'vod' ? 'filmes' : 'séries'}`;
+  };
+
   if (loading) {
     return <LoadingSpinner />;
   }
@@ -165,20 +246,60 @@ const CategoryScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>{categoryName}</Text>
-        <Text style={styles.subtitle}>
-          {items.length} {type === 'live' || type === 'm3u' ? 'canais' : 
-           type === 'vod' ? 'filmes' : 'séries'}
-        </Text>
+        <View style={styles.headerTop}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Icon name="arrow-back" size={20} color="#fff" />
+          </TouchableOpacity>
+          
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>{categoryName}</Text>
+            <Text style={styles.subtitle}>{getItemCountText()}</Text>
+          </View>
+          
+          <TouchableOpacity
+            style={[styles.searchButton, showSearch && styles.searchButtonActive]}
+            onPress={toggleSearch}
+          >
+            <Icon 
+              name="search" 
+              size={20} 
+              color={showSearch ? '#007AFF' : '#fff'} 
+            />
+          </TouchableOpacity>
+        </View>
+        
+        {renderSearchBar()}
       </View>
 
-      {items.length === 0 ? (
+      {filteredItems.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>Nenhum item encontrado</Text>
+          {searchQuery ? (
+            <>
+              <Icon name="search" size={48} color="#666" style={styles.emptyIcon} />
+              <Text style={styles.emptyText}>
+                Nenhum resultado para "{searchQuery}"
+              </Text>
+              <TouchableOpacity
+                style={styles.clearSearchButton}
+                onPress={clearSearch}
+              >
+                <Icon name="close-circle" size={16} color="#fff" style={styles.buttonIcon} />
+                <Text style={styles.clearSearchButtonText}>Limpar busca</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <Icon name="folder-open-outline" size={48} color="#666" style={styles.emptyIcon} />
+              <Text style={styles.emptyText}>Nenhum item encontrado</Text>
+            </>
+          )}
         </View>
       ) : (
         <FlatList
-          data={items}
+          data={filteredItems}
           keyExtractor={getKeyExtractor}
           renderItem={renderItem}
           contentContainerStyle={styles.listContainer}
@@ -195,20 +316,52 @@ const styles = StyleSheet.create({
     backgroundColor: '#1a1a1a',
   },
   header: {
-    padding: 20,
-    paddingTop: 40,
     borderBottomWidth: 1,
     borderBottomColor: '#333',
   },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    paddingTop: 40,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#2a2a2a',
+    borderRadius: 20,
+  },
+  titleContainer: {
+    flex: 1,
+    marginHorizontal: 15,
+  },
   title: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#fff',
   },
   subtitle: {
     fontSize: 14,
     color: '#666',
-    marginTop: 5,
+    marginTop: 2,
+  },
+  searchButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#2a2a2a',
+    borderRadius: 20,
+  },
+  searchButtonActive: {
+    backgroundColor: '#1a3a5c',
+  },
+  searchContainer: {
+    padding: 20,
+    paddingTop: 0,
+    paddingBottom: 15,
   },
   listContainer: {
     padding: 20,
@@ -217,11 +370,34 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  emptyIcon: {
+    marginBottom: 16,
   },
   emptyText: {
     color: '#666',
     fontSize: 16,
     textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 22,
+  },
+  clearSearchButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  clearSearchButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  buttonIcon: {
+    marginRight: 4,
   },
 });
 
