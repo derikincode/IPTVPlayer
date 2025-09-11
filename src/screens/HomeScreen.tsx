@@ -177,13 +177,6 @@ const HomeScreen: React.FC = () => {
           </ScrollView>
         </View>
       )}
-
-      <View style={styles.infoSection}>
-        <Text style={styles.infoTitle}>Tipo de Conexão</Text>
-        <Text style={styles.infoText}>
-          {loginType === 'xtream' ? 'Xtream Codes API' : 'Lista M3U'}
-        </Text>
-      </View>
     </ScrollView>
   );
 };
@@ -279,6 +272,7 @@ const styles = StyleSheet.create({
   },
   recentSection: {
     padding: 20,
+    paddingBottom: 40,
   },
   sectionTitle: {
     fontSize: 18,
@@ -309,23 +303,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     textAlign: 'center',
-  },
-  infoSection: {
-    padding: 20,
-    backgroundColor: '#2a2a2a',
-    marginHorizontal: 20,
-    marginBottom: 20,
-    borderRadius: 10,
-  },
-  infoTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 5,
-  },
-  infoText: {
-    color: '#ccc',
-    fontSize: 14,
   },
 });
 
