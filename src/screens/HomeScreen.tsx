@@ -9,11 +9,11 @@ import {
 } from 'react-native';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import NetInfo from '@react-native-community/netinfo';
+import Icon from 'react-native-vector-icons/Ionicons';
 import StorageService from '../services/StorageService';
 import XtreamAPI from '../services/XtreamAPI';
 import OfflineMessage from '../components/OfflineMessage';
 import LoadingSpinner from '../components/LoadingSpinner';
-import AppIcon from '../components/AppIcon';
 
 const HomeScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -59,6 +59,10 @@ const HomeScreen: React.FC = () => {
     }
   };
 
+  const handleSettings = () => {
+    navigation.navigate('Settings' as never);
+  };
+
   const handleLogout = () => {
     Alert.alert(
       'Logout',
@@ -92,10 +96,14 @@ const HomeScreen: React.FC = () => {
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>IPTV Player</Text>
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <AppIcon name="logout" size={16} color="#fff" style={styles.logoutIcon} />
-          <Text style={styles.logoutText}>Sair</Text>
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity style={styles.headerButton} onPress={handleSettings}>
+            <Icon name="settings" size={20} color="#fff" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <Text style={styles.logoutText}>Sair</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.menuContainer}>
@@ -104,7 +112,7 @@ const HomeScreen: React.FC = () => {
           onPress={() => navigation.navigate('LiveTV' as never)}
         >
           <View style={styles.menuIcon}>
-            <AppIcon name="tv" library="ionicons" size={28} color="#fff" />
+            <Icon name="tv" size={28} color="#fff" />
           </View>
           <Text style={styles.menuText}>Canais ao Vivo</Text>
         </TouchableOpacity>
@@ -114,7 +122,7 @@ const HomeScreen: React.FC = () => {
           onPress={() => navigation.navigate('Movies' as never)}
         >
           <View style={styles.menuIcon}>
-            <AppIcon name="movie" size={28} color="#fff" />
+            <Icon name="film" size={28} color="#fff" />
           </View>
           <Text style={styles.menuText}>Filmes</Text>
         </TouchableOpacity>
@@ -124,7 +132,7 @@ const HomeScreen: React.FC = () => {
           onPress={() => navigation.navigate('Series' as never)}
         >
           <View style={styles.menuIcon}>
-            <AppIcon name="tv-outline" library="ionicons" size={28} color="#fff" />
+            <Icon name="videocam" size={28} color="#fff" />
           </View>
           <Text style={styles.menuText}>Séries</Text>
         </TouchableOpacity>
@@ -134,9 +142,19 @@ const HomeScreen: React.FC = () => {
           onPress={() => navigation.navigate('Search' as never)}
         >
           <View style={styles.menuIcon}>
-            <AppIcon name="search" size={28} color="#fff" />
+            <Icon name="search" size={28} color="#fff" />
           </View>
           <Text style={styles.menuText}>Buscar</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.menuItem, styles.settingsMenuItem]}
+          onPress={handleSettings}
+        >
+          <View style={[styles.menuIcon, styles.settingsIcon]}>
+            <Icon name="settings" size={28} color="#fff" />
+          </View>
+          <Text style={styles.menuText}>Configurações</Text>
         </TouchableOpacity>
       </View>
 
@@ -147,12 +165,9 @@ const HomeScreen: React.FC = () => {
             {recentChannels.map((channel, index) => (
               <TouchableOpacity key={index} style={styles.recentItem}>
                 <View style={styles.recentChannelIcon}>
-                  <AppIcon 
-                    name="tv" 
-                    library="ionicons" 
-                    size={24} 
-                    color="#fff" 
-                  />
+                  <Text style={styles.recentChannelText}>
+                    {channel.name.charAt(0).toUpperCase()}
+                  </Text>
                 </View>
                 <Text style={styles.recentChannelName} numberOfLines={2}>
                   {channel.name}
@@ -164,10 +179,7 @@ const HomeScreen: React.FC = () => {
       )}
 
       <View style={styles.infoSection}>
-        <View style={styles.infoHeader}>
-          <AppIcon name="info" size={20} color="#007AFF" style={styles.infoIcon} />
-          <Text style={styles.infoTitle}>Tipo de Conexão</Text>
-        </View>
+        <Text style={styles.infoTitle}>Tipo de Conexão</Text>
         <Text style={styles.infoText}>
           {loginType === 'xtream' ? 'Xtream Codes API' : 'Lista M3U'}
         </Text>
@@ -193,16 +205,25 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#fff',
   },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerButton: {
+    backgroundColor: '#333',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    marginRight: 10,
+  },
+  headerButtonText: {
+    fontSize: 16,
+  },
   logoutButton: {
     backgroundColor: '#333',
     paddingHorizontal: 15,
     paddingVertical: 8,
     borderRadius: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  logoutIcon: {
-    marginRight: 5,
   },
   logoutText: {
     color: '#fff',
@@ -222,6 +243,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 15,
   },
+  settingsMenuItem: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+  },
   menuIcon: {
     width: 60,
     height: 60,
@@ -230,6 +259,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 10,
+  },
+  settingsIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginBottom: 0,
+    marginRight: 15,
+    backgroundColor: '#FF6B35',
+  },
+  menuIconText: {
+    fontSize: 24,
   },
   menuText: {
     color: '#fff',
@@ -260,6 +300,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
+  recentChannelText: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
   recentChannelName: {
     color: '#fff',
     fontSize: 12,
@@ -272,18 +317,11 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderRadius: 10,
   },
-  infoHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  infoIcon: {
-    marginRight: 8,
-  },
   infoTitle: {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+    marginBottom: 5,
   },
   infoText: {
     color: '#ccc',

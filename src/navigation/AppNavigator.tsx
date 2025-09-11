@@ -14,6 +14,7 @@ import SeriesScreen from '../screens/SeriesScreen';
 import CategoryScreen from '../screens/CategoryScreen';
 import PlayerScreen from '../screens/PlayerScreen';
 import SearchScreen from '../screens/SearchScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -106,6 +107,7 @@ const AppNavigator = () => {
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Main" component={TabNavigator} />
         <Stack.Screen name="Category" component={CategoryScreen} />
+        <Stack.Screen name="Settings" component={SettingsScreen} />
         <Stack.Screen 
           name="Player" 
           component={PlayerScreen}

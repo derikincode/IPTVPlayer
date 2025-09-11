@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { XtreamCredentials, M3UCredentials } from '../types';
+import { XtreamCredentials, M3UCredentials, AppSettings } from '../types';
 
 class StorageService {
   private static readonly KEYS = {
@@ -8,6 +8,7 @@ class StorageService {
     LOGIN_TYPE: '@iptv_login_type',
     FAVORITES: '@iptv_favorites',
     RECENT_CHANNELS: '@iptv_recent_channels',
+    APP_SETTINGS: '@iptv_app_settings',
   };
 
   // Xtream Credentials
@@ -68,6 +69,29 @@ class StorageService {
       return (await AsyncStorage.getItem(StorageService.KEYS.LOGIN_TYPE)) as 'xtream' | 'm3u' | null;
     } catch (error) {
       console.error('Erro ao buscar tipo de login:', error);
+      return null;
+    }
+  }
+
+  // App Settings
+  async saveAppSettings(settings: AppSettings): Promise<void> {
+    try {
+      await AsyncStorage.setItem(
+        StorageService.KEYS.APP_SETTINGS,
+        JSON.stringify(settings)
+      );
+    } catch (error) {
+      console.error('Erro ao salvar configurações:', error);
+      throw error;
+    }
+  }
+
+  async getAppSettings(): Promise<AppSettings | null> {
+    try {
+      const settings = await AsyncStorage.getItem(StorageService.KEYS.APP_SETTINGS);
+      return settings ? JSON.parse(settings) : null;
+    } catch (error) {
+      console.error('Erro ao buscar configurações:', error);
       return null;
     }
   }
@@ -163,6 +187,20 @@ class StorageService {
       await AsyncStorage.multiRemove(Object.values(StorageService.KEYS));
     } catch (error) {
       console.error('Erro ao limpar dados:', error);
+      throw error;
+    }
+  }
+
+  // Clear cache only
+  async clearCache(): Promise<void> {
+    try {
+      // Clear only cache-related data, keep credentials and settings
+      await AsyncStorage.multiRemove([
+        StorageService.KEYS.RECENT_CHANNELS,
+        StorageService.KEYS.FAVORITES,
+      ]);
+    } catch (error) {
+      console.error('Erro ao limpar cache:', error);
       throw error;
     }
   }
