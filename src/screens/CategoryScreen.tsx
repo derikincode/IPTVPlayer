@@ -264,7 +264,7 @@ const CategoryScreen: React.FC = () => {
             onPress={toggleSearch}
           >
             <Icon 
-              name="search" 
+              name={showSearch ? "close" : "search"} 
               size={20} 
               color={showSearch ? '#007AFF' : '#fff'} 
             />

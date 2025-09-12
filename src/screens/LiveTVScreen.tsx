@@ -5,13 +5,16 @@ import {
   FlatList,
   StyleSheet,
   Alert,
+  TouchableOpacity,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import NetInfo from '@react-native-community/netinfo';
+import Icon from 'react-native-vector-icons/Ionicons';
 import XtreamAPI from '../services/XtreamAPI';
 import M3UParser from '../services/M3UParser';
 import StorageService from '../services/StorageService';
 import CategoryCard from '../components/CategoryCard';
+import SearchBar from '../components/SearchBar';
 import LoadingSpinner from '../components/LoadingSpinner';
 import OfflineMessage from '../components/OfflineMessage';
 import { getCategoryIcon } from '../utils/iconConfig';
@@ -24,6 +27,8 @@ const LiveTVScreen: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [m3uCategories, setM3uCategories] = useState<{ [key: string]: M3UChannel[] }>({});
   const [loginType, setLoginType] = useState<'xtream' | 'm3u' | null>(null);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener(state => {
@@ -82,21 +87,60 @@ const LiveTVScreen: React.FC = () => {
     });
   };
 
+  const handleSearch = () => {
+    if (searchQuery.trim()) {
+      navigation.navigate('Search');
+    }
+  };
+
+  const toggleSearch = () => {
+    setShowSearch(!showSearch);
+    if (showSearch) {
+      setSearchQuery('');
+    }
+  };
+
+  const filteredCategories = () => {
+    if (!searchQuery.trim()) {
+      return categories;
+    }
+    
+    const query = searchQuery.toLowerCase();
+    return categories.filter(category =>
+      category.category_name.toLowerCase().includes(query)
+    );
+  };
+
+  const filteredM3UCategories = () => {
+    if (!searchQuery.trim()) {
+      return Object.keys(m3uCategories);
+    }
+    
+    const query = searchQuery.toLowerCase();
+    return Object.keys(m3uCategories).filter(categoryName =>
+      categoryName.toLowerCase().includes(query)
+    );
+  };
+
   const renderXtreamCategories = () => {
-    if (categories.length === 0) {
+    const filtered = filteredCategories();
+    
+    if (filtered.length === 0) {
       return (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>Nenhuma categoria encontrada</Text>
+          <Icon name="search" size={48} color="#666" style={styles.emptyIcon} />
+          <Text style={styles.emptyText}>
+            {searchQuery ? `Nenhuma categoria encontrada para "${searchQuery}"` : 'Nenhuma categoria encontrada'}
+          </Text>
         </View>
       );
     }
 
     return (
       <FlatList
-        data={categories}
+        data={filtered}
         keyExtractor={(item) => item.category_id}
         renderItem={({ item }) => {
-          // Obtém o ícone baseado no nome da categoria
           const iconConfig = getCategoryIcon(item.category_name, 'live');
           
           return (
@@ -115,22 +159,24 @@ const LiveTVScreen: React.FC = () => {
   };
 
   const renderM3UCategories = () => {
-    const categoryNames = Object.keys(m3uCategories);
+    const filtered = filteredM3UCategories();
     
-    if (categoryNames.length === 0) {
+    if (filtered.length === 0) {
       return (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>Nenhuma categoria encontrada</Text>
+          <Icon name="search" size={48} color="#666" style={styles.emptyIcon} />
+          <Text style={styles.emptyText}>
+            {searchQuery ? `Nenhuma categoria encontrada para "${searchQuery}"` : 'Nenhuma categoria encontrada'}
+          </Text>
         </View>
       );
     }
 
     return (
       <FlatList
-        data={categoryNames}
+        data={filtered}
         keyExtractor={(item) => item}
         renderItem={({ item }) => {
-          // Obtém o ícone baseado no nome da categoria
           const iconConfig = getCategoryIcon(item, 'live');
           
           return (
@@ -160,7 +206,33 @@ const LiveTVScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Canais ao Vivo</Text>
+        <View style={styles.headerTop}>
+          <Text style={styles.title}>Canais ao Vivo</Text>
+          <TouchableOpacity
+            style={[styles.searchButton, showSearch && styles.searchButtonActive]}
+            onPress={toggleSearch}
+          >
+            <Icon 
+              name={showSearch ? "close" : "search"} 
+              size={20} 
+              color={showSearch ? '#007AFF' : '#fff'} 
+            />
+          </TouchableOpacity>
+        </View>
+        
+        {showSearch && (
+          <View style={styles.searchContainer}>
+            <SearchBar
+              placeholder="Buscar categorias..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              onSearch={handleSearch}
+              autoFocus={true}
+              compact={true}
+              showButton={searchQuery.length > 0}
+            />
+          </View>
+        )}
       </View>
       
       {loginType === 'xtream' ? renderXtreamCategories() : renderM3UCategories()}
@@ -174,15 +246,36 @@ const styles = StyleSheet.create({
     backgroundColor: '#1a1a1a',
   },
   header: {
-    padding: 20,
-    paddingTop: 40,
     borderBottomWidth: 1,
     borderBottomColor: '#333',
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    paddingTop: 40,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#fff',
+  },
+  searchButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#2a2a2a',
+    borderRadius: 20,
+  },
+  searchButtonActive: {
+    backgroundColor: '#1a3a5c',
+  },
+  searchContainer: {
+    padding: 20,
+    paddingTop: 0,
+    paddingBottom: 15,
   },
   listContainer: {
     padding: 20,
@@ -191,11 +284,16 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  emptyIcon: {
+    marginBottom: 16,
   },
   emptyText: {
     color: '#666',
     fontSize: 16,
     textAlign: 'center',
+    lineHeight: 22,
   },
 });
 
