@@ -125,7 +125,22 @@ const LiveTVScreen: React.FC = () => {
   const renderXtreamCategories = () => {
     const filtered = filteredCategories();
     
-    if (filtered.length === 0) {
+    // Criar array com "Todos os Canais" no início (quando não está pesquisando)
+    const allCategories = [];
+    
+    // Adicionar categoria "Todos os Canais" apenas quando não está pesquisando
+    if (!searchQuery.trim()) {
+      allCategories.push({
+        category_id: 'all_channels',
+        category_name: 'Todos os Canais',
+        parent_id: 0,
+      });
+    }
+    
+    // Adicionar as categorias existentes
+    allCategories.push(...filtered);
+    
+    if (allCategories.length === 0) {
       return (
         <View style={styles.emptyContainer}>
           <Icon name="search" size={48} color="#666" style={styles.emptyIcon} />
@@ -138,7 +153,7 @@ const LiveTVScreen: React.FC = () => {
 
     return (
       <FlatList
-        data={filtered}
+        data={allCategories}
         keyExtractor={(item) => item.category_id}
         renderItem={({ item }) => {
           const iconConfig = getCategoryIcon(item.category_name, 'live');
@@ -161,7 +176,18 @@ const LiveTVScreen: React.FC = () => {
   const renderM3UCategories = () => {
     const filtered = filteredM3UCategories();
     
-    if (filtered.length === 0) {
+    // Criar array com "Todos os Canais" no início (quando não está pesquisando)
+    const allCategories = [];
+    
+    // Adicionar categoria "Todos os Canais" apenas quando não está pesquisando
+    if (!searchQuery.trim()) {
+      allCategories.push('Todos os Canais');
+    }
+    
+    // Adicionar as categorias existentes
+    allCategories.push(...filtered);
+    
+    if (allCategories.length === 0) {
       return (
         <View style={styles.emptyContainer}>
           <Icon name="search" size={48} color="#666" style={styles.emptyIcon} />
@@ -174,9 +200,23 @@ const LiveTVScreen: React.FC = () => {
 
     return (
       <FlatList
-        data={filtered}
+        data={allCategories}
         keyExtractor={(item) => item}
         renderItem={({ item }) => {
+          // Para a categoria "Todos os Canais", combinar todos os canais
+          if (item === 'Todos os Canais') {
+            const allChannels = Object.values(m3uCategories).flat();
+            return (
+              <CategoryCard
+                title={item}
+                subtitle={`${allChannels.length} canais`}
+                onPress={() => handleM3UCategoryPress(item, allChannels)}
+                iconName="tv"
+                iconLibrary="ionicons"
+              />
+            );
+          }
+          
           const iconConfig = getCategoryIcon(item, 'live');
           
           return (

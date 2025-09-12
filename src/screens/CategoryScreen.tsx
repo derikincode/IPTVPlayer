@@ -66,13 +66,28 @@ const CategoryScreen: React.FC = () => {
 
       switch (type) {
         case 'live':
-          data = await XtreamAPI.getLiveStreams(categoryId);
+          // Se categoryId for 'all_channels' ou vazio, carregar todos os canais
+          if (categoryId === 'all_channels' || !categoryId) {
+            data = await XtreamAPI.getLiveStreams(); // Sem categoryId para pegar todos
+          } else {
+            data = await XtreamAPI.getLiveStreams(categoryId);
+          }
           break;
         case 'vod':
-          data = await XtreamAPI.getVODStreams(categoryId);
+          // Se categoryId for 'all_movies' ou vazio, carregar todos os filmes
+          if (categoryId === 'all_movies' || !categoryId) {
+            data = await XtreamAPI.getVODStreams(); // Sem categoryId para pegar todos
+          } else {
+            data = await XtreamAPI.getVODStreams(categoryId);
+          }
           break;
         case 'series':
-          data = await XtreamAPI.getSeries(categoryId);
+          // Se categoryId for 'all_series' ou vazio, carregar todas as séries
+          if (categoryId === 'all_series' || !categoryId) {
+            data = await XtreamAPI.getSeries(); // Sem categoryId para pegar todos
+          } else {
+            data = await XtreamAPI.getSeries(categoryId);
+          }
           break;
       }
 
