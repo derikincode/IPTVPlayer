@@ -9,7 +9,6 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import NetInfo from '@react-native-community/netinfo';
-import Icon from 'react-native-vector-icons/Ionicons';
 import XtreamAPI from '../services/XtreamAPI';
 import M3UParser from '../services/M3UParser';
 import StorageService from '../services/StorageService';
@@ -17,6 +16,7 @@ import CategoryCard from '../components/CategoryCard';
 import SearchBar from '../components/SearchBar';
 import LoadingSpinner from '../components/LoadingSpinner';
 import OfflineMessage from '../components/OfflineMessage';
+import AppIcon from '../components/AppIcon';
 import { getCategoryIcon } from '../utils/iconConfig';
 import { Category, M3UChannel } from '../types';
 
@@ -143,7 +143,13 @@ const LiveTVScreen: React.FC = () => {
     if (allCategories.length === 0) {
       return (
         <View style={styles.emptyContainer}>
-          <Icon name="search" size={48} color="#666" style={styles.emptyIcon} />
+          <AppIcon 
+            name="search" 
+            library="material"
+            size={48} 
+            color="#666" 
+            style={styles.emptyIcon} 
+          />
           <Text style={styles.emptyText}>
             {searchQuery ? `Nenhuma categoria encontrada para "${searchQuery}"` : 'Nenhuma categoria encontrada'}
           </Text>
@@ -156,14 +162,12 @@ const LiveTVScreen: React.FC = () => {
         data={allCategories}
         keyExtractor={(item) => item.category_id}
         renderItem={({ item }) => {
-          const iconConfig = getCategoryIcon(item.category_name, 'live');
-          
           return (
             <CategoryCard
               title={item.category_name}
               onPress={() => handleCategoryPress(item.category_id, item.category_name)}
-              iconName={iconConfig.name}
-              iconLibrary={iconConfig.library}
+              iconName="folder"
+              iconLibrary="material"
             />
           );
         }}
@@ -190,7 +194,13 @@ const LiveTVScreen: React.FC = () => {
     if (allCategories.length === 0) {
       return (
         <View style={styles.emptyContainer}>
-          <Icon name="search" size={48} color="#666" style={styles.emptyIcon} />
+          <AppIcon 
+            name="search" 
+            library="material"
+            size={48} 
+            color="#666" 
+            style={styles.emptyIcon} 
+          />
           <Text style={styles.emptyText}>
             {searchQuery ? `Nenhuma categoria encontrada para "${searchQuery}"` : 'Nenhuma categoria encontrada'}
           </Text>
@@ -247,13 +257,16 @@ const LiveTVScreen: React.FC = () => {
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <Text style={styles.title}>Canais ao Vivo</Text>
+          <View style={styles.titleSection}>
+            <Text style={styles.title}>Canais ao Vivo</Text>
+          </View>
           <TouchableOpacity
             style={[styles.searchButton, showSearch && styles.searchButtonActive]}
             onPress={toggleSearch}
           >
-            <Icon 
+            <AppIcon 
               name={showSearch ? "close" : "search"} 
+              library="material"
               size={20} 
               color={showSearch ? '#007AFF' : '#fff'} 
             />
@@ -295,6 +308,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     paddingTop: 40,
+  },
+  titleSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  titleIcon: {
+    marginRight: 12,
   },
   title: {
     fontSize: 24,
