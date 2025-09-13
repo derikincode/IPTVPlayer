@@ -6,14 +6,17 @@ import {
   TouchableOpacity,
   Alert,
   StatusBar,
+  Dimensions,
+  BackHandler,
+  Animated,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import Video, { VideoRef } from 'react-native-video';
+import Orientation from 'react-native-orientation-locker';
 import StorageService from '../services/StorageService';
 import XtreamAPI from '../services/XtreamAPI';
 import AppIcon from '../components/AppIcon';
 import { EPGData } from '../types';
-import Orientation from 'react-native-orientation-locker';
 
 interface RouteParams {
   url: string;
@@ -21,6 +24,8 @@ interface RouteParams {
   type: 'live' | 'vod';
   streamId?: number;
 }
+
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 const PlayerScreen: React.FC = () => {
   const route = useRoute();
@@ -35,9 +40,34 @@ const PlayerScreen: React.FC = () => {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [epgData, setEpgData] = useState<EPGData[]>([]);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [dimensions, setDimensions] = useState(Dimensions.get('window'));
+  
+  // Refs para timers
+  const hideControlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
+  // Animações
+  const controlsOpacity = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
+    // Forçar rotação para paisagem ao entrar no player
+    Orientation.lockToLandscape();
+    StatusBar.setHidden(true);
+    
+    // Listener para mudanças de orientação
+    const orientationListener = (orientation: string) => {
+      setDimensions(Dimensions.get('window'));
+    };
+
+    // Listener para mudanças de dimensões
+    const dimensionListener = Dimensions.addEventListener('change', ({ window }) => {
+      setDimensions(window);
+    });
+
+    Orientation.addOrientationListener(orientationListener);
+
+    // Prevenir voltar com botão físico sem confirmação
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
+
     // Save to recent channels
     if (type === 'live') {
       StorageService.addToRecentChannels(
@@ -51,10 +81,52 @@ const PlayerScreen: React.FC = () => {
       loadEPG();
     }
 
+    // Auto-hide controls após 4 segundos
+    startHideTimer();
+
     return () => {
-      Orientation.lockToPortrait(); // Comentado até instalar
+      // Restaurar orientação ao sair
+      Orientation.lockToPortrait();
+      StatusBar.setHidden(false);
+      Orientation.removeOrientationListener(orientationListener);
+      dimensionListener?.remove();
+      backHandler.remove();
+      clearHideTimer();
     };
   }, []);
+
+  const clearHideTimer = () => {
+    if (hideControlsTimer.current) {
+      clearTimeout(hideControlsTimer.current);
+      hideControlsTimer.current = null;
+    }
+  };
+
+  const startHideTimer = () => {
+    clearHideTimer();
+    hideControlsTimer.current = setTimeout(() => {
+      hideControls();
+    }, 4000);
+  };
+
+  const handleBackPress = (): boolean => {
+    Alert.alert(
+      'Sair do Player',
+      'Deseja parar a reprodução e voltar?',
+      [
+        { text: 'Continuar Assistindo', style: 'cancel' },
+        { 
+          text: 'Sair', 
+          style: 'destructive',
+          onPress: () => {
+            Orientation.lockToPortrait();
+            navigation.goBack();
+          }
+        },
+      ]
+    );
+    return true;
+  };
 
   const loadEPG = async () => {
     if (!streamId) return;
@@ -79,10 +151,16 @@ const PlayerScreen: React.FC = () => {
     setError(true);
     Alert.alert(
       'Erro de Reprodução',
-      'Não foi possível reproduzir este conteúdo.',
+      'Não foi possível reproduzir este conteúdo. Verifique sua conexão.',
       [
         { text: 'Tentar Novamente', onPress: () => setError(false) },
-        { text: 'Voltar', onPress: () => navigation.goBack() },
+        { 
+          text: 'Voltar', 
+          onPress: () => {
+            Orientation.lockToPortrait();
+            navigation.goBack();
+          }
+        },
       ]
     );
   };
@@ -91,19 +169,72 @@ const PlayerScreen: React.FC = () => {
     setCurrentTime(data.currentTime);
   };
 
-  const togglePlayPause = () => {
-    setPaused(!paused);
-  };
-
-  const toggleFullscreen = () => {
-    if (isFullscreen) {
-      setIsFullscreen(false);
-    } else {
-      setIsFullscreen(true);
+  const onBuffer = ({ isBuffering }: { isBuffering: boolean }) => {
+    if (isBuffering && !loading) {
+      setLoading(true);
+    } else if (!isBuffering && loading) {
+      setLoading(false);
     }
   };
 
+  const togglePlayPause = () => {
+    setPaused(!paused);
+    showControlsTemporarily();
+  };
+
+  const showControlsTemporarily = () => {
+    setShowControls(true);
+    Animated.timing(controlsOpacity, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+
+    startHideTimer();
+  };
+
+  const hideControls = () => {
+    Animated.timing(controlsOpacity, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => {
+      setShowControls(false);
+    });
+  };
+
+  const toggleControls = () => {
+    console.log('Toggle controls - showControls:', showControls);
+    
+    if (showControls) {
+      clearHideTimer();
+      hideControls();
+    } else {
+      showControlsTemporarily();
+    }
+  };
+
+  const seekTo = (time: number) => {
+    if (videoRef.current && type === 'vod') {
+      videoRef.current.seek(time);
+      showControlsTemporarily();
+    }
+  };
+
+  const handleSeekBarPress = (event: any) => {
+    if (type !== 'vod' || duration === 0) return;
+    
+    const { locationX } = event.nativeEvent;
+    const seekBarWidth = dimensions.width - 120; // Considerando padding e textos
+    const progress = Math.max(0, Math.min(1, locationX / seekBarWidth));
+    const seekTime = progress * duration;
+    
+    seekTo(seekTime);
+  };
+
   const formatTime = (seconds: number) => {
+    if (isNaN(seconds) || seconds < 0) return '0:00';
+    
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
@@ -124,133 +255,224 @@ const PlayerScreen: React.FC = () => {
     );
   };
 
-  const handleControlsPress = () => {
-    setShowControls(!showControls);
-    // Auto-hide controls after 3 seconds
-    if (!showControls) {
-      setTimeout(() => setShowControls(false), 3000);
-    }
+  const getNextEPGProgram = () => {
+    if (epgData.length === 0) return null;
+    
+    const now = Date.now() / 1000;
+    const futurePrograms = epgData.filter(program => 
+      parseInt(program.start_timestamp) > now
+    );
+    
+    return futurePrograms.sort((a, b) => 
+      parseInt(a.start_timestamp) - parseInt(b.start_timestamp)
+    )[0] || null;
+  };
+
+  const changeQuality = () => {
+    clearHideTimer();
+    Alert.alert(
+      'Qualidade',
+      'Selecione a qualidade do vídeo:',
+      [
+        { text: 'Auto', onPress: () => showControlsTemporarily() },
+        { text: '1080p', onPress: () => showControlsTemporarily() },
+        { text: '720p', onPress: () => showControlsTemporarily() },
+        { text: '480p', onPress: () => showControlsTemporarily() },
+        { text: 'Cancelar', style: 'cancel', onPress: () => showControlsTemporarily() },
+      ]
+    );
   };
 
   if (error) {
     return (
-      <View style={styles.errorContainer}>
+      <View style={[styles.errorContainer, { width: dimensions.width, height: dimensions.height }]}>
         <AppIcon name="error" size={64} color="#dc3545" style={styles.errorIcon} />
         <Text style={styles.errorText}>Erro ao reproduzir conteúdo</Text>
-        <TouchableOpacity
-          style={styles.retryButton}
-          onPress={() => setError(false)}
-        >
-          <AppIcon name="refresh" size={18} color="#fff" style={styles.retryIcon} />
-          <Text style={styles.retryButtonText}>Tentar Novamente</Text>
-        </TouchableOpacity>
+        <Text style={styles.errorSubtext}>Verifique sua conexão e tente novamente</Text>
+        <View style={styles.errorButtons}>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => setError(false)}
+          >
+            <AppIcon name="refresh" size={18} color="#fff" style={styles.retryIcon} />
+            <Text style={styles.retryButtonText}>Tentar Novamente</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => {
+              Orientation.lockToPortrait();
+              navigation.goBack();
+            }}
+          >
+            <AppIcon name="arrow-back" size={18} color="#007AFF" style={styles.backIcon} />
+            <Text style={styles.backButtonText}>Voltar</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
 
   const currentProgram = getCurrentEPGProgram();
+  const nextProgram = getNextEPGProgram();
+  const progress = duration > 0 ? currentTime / duration : 0;
 
   return (
-    <View style={styles.container}>
-      <StatusBar hidden={isFullscreen} />
+    <View style={[styles.container, { width: dimensions.width, height: dimensions.height }]}>
+      <StatusBar hidden />
       
-      <TouchableOpacity
-        style={styles.videoContainer}
-        activeOpacity={1}
-        onPress={handleControlsPress}
-      >
-        <Video
-          ref={videoRef}
-          source={{ uri: url }}
-          style={styles.video}
-          onLoad={onLoad}
-          onError={onError}
-          onProgress={onProgress}
-          paused={paused}
-          resizeMode="contain"
-          bufferConfig={{
-            minBufferMs: 15000,
-            maxBufferMs: 50000,
-            bufferForPlaybackMs: 2500,
-            bufferForPlaybackAfterRebufferMs: 5000,
-          }}
-        />
+      {/* Video Player */}
+      <Video
+        ref={videoRef}
+        source={{ uri: url }}
+        style={styles.video}
+        onLoad={onLoad}
+        onError={onError}
+        onProgress={onProgress}
+        onBuffer={onBuffer}
+        paused={paused}
+        resizeMode="contain"
+        bufferConfig={{
+          minBufferMs: 15000,
+          maxBufferMs: 50000,
+          bufferForPlaybackMs: 2500,
+          bufferForPlaybackAfterRebufferMs: 5000,
+        }}
+        progressUpdateInterval={1000}
+      />
 
+      {/* Touch Area for Controls */}
+      <TouchableOpacity
+        style={styles.touchArea}
+        activeOpacity={1}
+        onPress={toggleControls}
+      >
+        {/* Loading Overlay */}
         {loading && (
           <View style={styles.loadingOverlay}>
-            <AppIcon name="refresh" size={32} color="#007AFF" />
-            <Text style={styles.loadingText}>Carregando...</Text>
+            <View style={styles.loadingContainer}>
+              <AppIcon name="refresh" size={32} color="#007AFF" />
+              <Text style={styles.loadingText}>
+                {error ? 'Reconectando...' : 'Carregando...'}
+              </Text>
+            </View>
           </View>
         )}
 
-        {showControls && (
-          <View style={styles.controlsOverlay}>
-            <View style={styles.topControls}>
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={() => navigation.goBack()}
-              >
-                <AppIcon name="arrow-back" size={24} color="#fff" />
-              </TouchableOpacity>
-              <View style={styles.titleContainer}>
-                <Text style={styles.videoTitle} numberOfLines={1}>
-                  {title}
+        {/* Controls Overlay */}
+        <Animated.View 
+          style={[
+            styles.controlsOverlay, 
+            { 
+              opacity: controlsOpacity,
+              pointerEvents: showControls ? 'auto' : 'none'
+            }
+          ]}
+        >
+          {/* Top Controls */}
+          <View style={styles.topControls}>
+            <TouchableOpacity
+              style={styles.exitButton}
+              onPress={handleBackPress}
+            >
+              <AppIcon name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
+            
+            <View style={styles.titleContainer}>
+              <Text style={styles.videoTitle} numberOfLines={1}>
+                {title}
+              </Text>
+              {currentProgram && (
+                <Text style={styles.epgText} numberOfLines={1}>
+                  {currentProgram.title}
                 </Text>
-                {currentProgram && (
-                  <Text style={styles.epgText} numberOfLines={1}>
-                    {currentProgram.title}
-                  </Text>
-                )}
-              </View>
-              <TouchableOpacity
-                style={styles.fullscreenButton}
-                onPress={toggleFullscreen}
-              >
-                <AppIcon 
-                  name={isFullscreen ? "fullscreen-exit" : "fullscreen"} 
-                  size={24} 
-                  color="#fff" 
-                />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.bottomControls}>
-              <TouchableOpacity
-                style={styles.playButton}
-                onPress={togglePlayPause}
-              >
-                <AppIcon 
-                  name={paused ? "play-arrow" : "pause"} 
-                  size={32} 
-                  color="#fff" 
-                />
-              </TouchableOpacity>
-              
-              {type === 'vod' && (
-                <View style={styles.progressContainer}>
-                  <Text style={styles.timeText}>
-                    {formatTime(currentTime)} / {formatTime(duration)}
-                  </Text>
-                </View>
               )}
             </View>
+
+            <TouchableOpacity
+              style={styles.qualityButton}
+              onPress={changeQuality}
+            >
+              <AppIcon name="settings" size={20} color="#fff" />
+            </TouchableOpacity>
           </View>
-        )}
+
+          {/* Center Controls */}
+          <View style={styles.centerControls}>
+            {type === 'vod' && (
+              <TouchableOpacity
+                style={styles.controlButton}
+                onPress={() => seekTo(Math.max(0, currentTime - 10))}
+              >
+                <AppIcon name="replay-10" library="material" size={32} color="#fff" />
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={styles.playPauseButton}
+              onPress={togglePlayPause}
+            >
+              <AppIcon 
+                name={paused ? "play-arrow" : "pause"} 
+                size={48} 
+                color="#fff" 
+              />
+            </TouchableOpacity>
+
+            {type === 'vod' && (
+              <TouchableOpacity
+                style={styles.controlButton}
+                onPress={() => seekTo(Math.min(duration, currentTime + 10))}
+              >
+                <AppIcon name="forward-10" library="material" size={32} color="#fff" />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Bottom Controls */}
+          <View style={styles.bottomControls}>
+            {type === 'vod' && duration > 0 && (
+              <View style={styles.progressContainer}>
+                <Text style={styles.timeText}>
+                  {formatTime(currentTime)}
+                </Text>
+                
+                <TouchableOpacity
+                  style={styles.seekBar}
+                  onPress={handleSeekBarPress}
+                  activeOpacity={1}
+                >
+                  <View style={styles.seekBarBackground}>
+                    <View 
+                      style={[
+                        styles.seekBarProgress,
+                        { width: `${progress * 100}%` }
+                      ]} 
+                    />
+                  </View>
+                </TouchableOpacity>
+                
+                <Text style={styles.timeText}>
+                  {formatTime(duration)}
+                </Text>
+              </View>
+            )}
+
+            {type === 'live' && (
+              <View style={styles.liveIndicator}>
+                <View style={styles.liveDot} />
+                <Text style={styles.liveText}>AO VIVO</Text>
+              </View>
+            )}
+          </View>
+        </Animated.View>
       </TouchableOpacity>
 
-      {!isFullscreen && currentProgram && (
-        <View style={styles.epgContainer}>
-          <View style={styles.epgHeader}>
-            <AppIcon name="tv" library="ionicons" size={20} color="#007AFF" />
-            <Text style={styles.epgTitle}>Programa Atual</Text>
-          </View>
-          <Text style={styles.epgProgramTitle}>{currentProgram.title}</Text>
-          <Text style={styles.epgDescription} numberOfLines={3}>
-            {currentProgram.description}
-          </Text>
-          <View style={styles.epgTimeContainer}>
-            <AppIcon name="schedule" size={16} color="#007AFF" />
-            <Text style={styles.epgTime}>
+      {/* EPG Info - sempre visível quando há programa */}
+      {currentProgram && type === 'live' && !showControls && (
+        <View style={styles.epgInfo}>
+          <View style={styles.epgCurrent}>
+            <Text style={styles.epgCurrentTitle}>{currentProgram.title}</Text>
+            <Text style={styles.epgCurrentTime}>
               {new Date(parseInt(currentProgram.start_timestamp) * 1000).toLocaleTimeString('pt-BR', {
                 hour: '2-digit',
                 minute: '2-digit'
@@ -260,6 +482,12 @@ const PlayerScreen: React.FC = () => {
               })}
             </Text>
           </View>
+          {nextProgram && (
+            <View style={styles.epgNext}>
+              <Text style={styles.epgNextLabel}>Próximo:</Text>
+              <Text style={styles.epgNextTitle}>{nextProgram.title}</Text>
+            </View>
+          )}
         </View>
       )}
     </View>
@@ -271,12 +499,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000',
   },
-  videoContainer: {
+  video: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    right: 0,
+  },
+  touchArea: {
     flex: 1,
     position: 'relative',
-  },
-  video: {
-    flex: 1,
   },
   loadingOverlay: {
     position: 'absolute',
@@ -286,7 +518,15 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    zIndex: 1000,
+  },
+  loadingContainer: {
+    alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingHorizontal: 30,
+    paddingVertical: 20,
+    borderRadius: 10,
   },
   loadingText: {
     color: '#fff',
@@ -299,21 +539,24 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'space-between',
+    zIndex: 100,
   },
   topControls: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 15,
-    paddingTop: 50,
+    paddingHorizontal: 20,
+    paddingTop: 30,
+    paddingBottom: 10,
   },
-  backButton: {
-    width: 40,
-    height: 40,
+  exitButton: {
+    width: 44,
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 22,
   },
   titleContainer: {
     flex: 1,
@@ -321,101 +564,171 @@ const styles = StyleSheet.create({
   },
   videoTitle: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
+    textShadowColor: 'rgba(0,0,0,0.7)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   epgText: {
-    color: '#ccc',
+    color: '#ddd',
     fontSize: 14,
     marginTop: 2,
+    textShadowColor: 'rgba(0,0,0,0.7)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
-  fullscreenButton: {
-    width: 40,
-    height: 40,
+  qualityButton: {
+    width: 44,
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 22,
   },
-  bottomControls: {
-    position: 'absolute',
-    bottom: 30,
-    left: 15,
-    right: 15,
+  centerControls: {
     flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 50,
   },
-  playButton: {
-    width: 50,
-    height: 50,
+  controlButton: {
+    width: 60,
+    height: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 30,
+    marginHorizontal: 20,
+  },
+  playPauseButton: {
+    width: 80,
+    height: 80,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.7)',
-    borderRadius: 25,
+    borderRadius: 40,
+    marginHorizontal: 30,
+  },
+  bottomControls: {
+    paddingHorizontal: 20,
+    paddingBottom: 30,
+    paddingTop: 10,
   },
   progressContainer: {
-    flex: 1,
-    marginLeft: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   timeText: {
     color: '#fff',
     fontSize: 14,
+    fontWeight: '500',
+    minWidth: 60,
+    textAlign: 'center',
   },
-  epgContainer: {
-    backgroundColor: '#2a2a2a',
-    padding: 15,
+  seekBar: {
+    flex: 1,
+    marginHorizontal: 15,
+    height: 40,
+    justifyContent: 'center',
   },
-  epgHeader: {
+  seekBarBackground: {
+    height: 4,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  seekBarProgress: {
+    height: '100%',
+    backgroundColor: '#007AFF',
+    borderRadius: 2,
+  },
+  liveIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    justifyContent: 'center',
   },
-  epgTitle: {
+  liveDot: {
+    width: 8,
+    height: 8,
+    backgroundColor: '#ff4444',
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  liveText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  epgInfo: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    borderRadius: 8,
+    padding: 15,
+    zIndex: 50,
+  },
+  epgCurrent: {
+    marginBottom: 10,
+  },
+  epgCurrentTitle: {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
-    marginLeft: 8,
+    marginBottom: 4,
   },
-  epgProgramTitle: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 5,
-  },
-  epgDescription: {
-    color: '#ccc',
-    fontSize: 12,
-    lineHeight: 16,
-    marginBottom: 8,
-  },
-  epgTimeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  epgTime: {
+  epgCurrentTime: {
     color: '#007AFF',
+    fontSize: 14,
+  },
+  epgNext: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.2)',
+    paddingTop: 8,
+  },
+  epgNextLabel: {
+    color: '#aaa',
     fontSize: 12,
-    marginLeft: 5,
+    marginBottom: 2,
+  },
+  epgNextTitle: {
+    color: '#ddd',
+    fontSize: 14,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#1a1a1a',
+    paddingHorizontal: 40,
   },
   errorIcon: {
     marginBottom: 20,
   },
   errorText: {
     color: '#fff',
-    fontSize: 16,
-    marginBottom: 20,
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
     textAlign: 'center',
+  },
+  errorSubtext: {
+    color: '#aaa',
+    fontSize: 14,
+    marginBottom: 30,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  errorButtons: {
+    flexDirection: 'row',
+    gap: 15,
   },
   retryButton: {
     backgroundColor: '#007AFF',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingHorizontal: 25,
+    paddingVertical: 12,
     borderRadius: 8,
     flexDirection: 'row',
     alignItems: 'center',
@@ -425,7 +738,25 @@ const styles = StyleSheet.create({
   },
   retryButtonText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  backButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    paddingHorizontal: 25,
+    paddingVertical: 12,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backIcon: {
+    marginRight: 8,
+  },
+  backButtonText: {
+    color: '#007AFF',
+    fontSize: 16,
     fontWeight: '500',
   },
 });
