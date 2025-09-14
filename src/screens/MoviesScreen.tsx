@@ -23,6 +23,7 @@ const { width } = Dimensions.get('window');
 
 interface CategoryWithMovies extends Category {
   movies: VODStream[];
+  totalMovies: number; // Adicionado para armazenar o total real
 }
 
 interface LoadCategoryResult {
@@ -90,22 +91,25 @@ const MoviesScreen: React.FC = () => {
       }
 
       // Filtrar e validar filmes
-      const validMovies = movies
-        .filter(isValidMovie)
-        .slice(0, 10); // Limitar a 10 por categoria
+      const validMovies = movies.filter(isValidMovie);
+      const totalMovies = validMovies.length; // Total real de filmes
 
       if (validMovies.length === 0) {
         console.log(`⚠️ ${category.category_name}: sem filmes válidos após filtro`);
         return { success: false, error: 'Sem filmes válidos' };
       }
 
-      console.log(`✅ ${category.category_name}: ${validMovies.length} filmes válidos`);
+      // Para a tela principal, mostrar apenas os primeiros 10 filmes
+      const displayMovies = validMovies.slice(0, 10);
+
+      console.log(`✅ ${category.category_name}: ${totalMovies} filmes total, exibindo ${displayMovies.length}`);
       
       return {
         success: true,
         category: {
           ...category,
-          movies: validMovies,
+          movies: displayMovies, // Filmes para exibir na tela
+          totalMovies: totalMovies, // Total real de filmes da categoria
         },
       };
     } catch (error: unknown) {
@@ -155,6 +159,7 @@ const MoviesScreen: React.FC = () => {
       const allMovies: VODStream[] = [];
       let successCount = 0;
       let errorCount = 0;
+      let totalMoviesCount = 0;
 
       // Carregar em lotes de 5 categorias por vez
       const batchSize = 5;
@@ -176,6 +181,7 @@ const MoviesScreen: React.FC = () => {
             if (loadResult.success && loadResult.category) {
               categoriesWithMovies.push(loadResult.category);
               allMovies.push(...loadResult.category.movies);
+              totalMoviesCount += loadResult.category.totalMovies;
               successCount++;
             } else {
               errorCount++;
@@ -196,7 +202,8 @@ const MoviesScreen: React.FC = () => {
       console.log(`   ✅ Sucessos: ${successCount}`);
       console.log(`   ❌ Erros: ${errorCount}`);
       console.log(`   📁 Categorias com filmes: ${categoriesWithMovies.length}`);
-      console.log(`   🎬 Total de filmes: ${allMovies.length}`);
+      console.log(`   🎬 Total de filmes: ${totalMoviesCount}`);
+      console.log(`   📺 Filmes carregados para exibição: ${allMovies.length}`);
 
       setCategories(categoriesWithMovies);
 
@@ -296,7 +303,7 @@ const MoviesScreen: React.FC = () => {
     );
   };
 
-  const handleCategoryPress = (category: Category): void => {
+  const handleCategoryPress = (category: CategoryWithMovies): void => {
     navigation.navigate('Category', {
       categoryId: category.category_id,
       categoryName: category.category_name,
@@ -334,7 +341,7 @@ const MoviesScreen: React.FC = () => {
       <View key={category.category_id} style={styles.categorySection}>
         <SectionHeader
           title={category.category_name}
-          subtitle={`${category.movies.length} filmes`}
+          subtitle={`${category.totalMovies} filmes`} // Usando totalMovies em vez de movies.length
           onSeeAll={() => handleCategoryPress(category)}
         />
         
@@ -376,6 +383,10 @@ const MoviesScreen: React.FC = () => {
     );
   }
 
+  // Calcular totais para o header principal
+  const totalCategoriesWithMovies = categories.length;
+  const totalMoviesOverall = categories.reduce((total, cat) => total + cat.totalMovies, 0);
+
   return (
     <ScrollView 
       style={styles.container}
@@ -397,7 +408,7 @@ const MoviesScreen: React.FC = () => {
       <View style={styles.header}>
         <SectionHeader
           title="Filmes"
-          subtitle={`${categories.length} categorias • ${categories.reduce((total, cat) => total + cat.movies.length, 0)} filmes`}
+          subtitle={`${totalCategoriesWithMovies} categorias • ${totalMoviesOverall} filmes`}
           showSeeAll={false}
         />
       </View>

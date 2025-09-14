@@ -23,6 +23,7 @@ const { width } = Dimensions.get('window');
 
 interface CategoryWithSeries extends Category {
   series: Series[];
+  totalSeries: number; // Adicionado para armazenar o total real
 }
 
 interface LoadCategoryResult {
@@ -91,22 +92,25 @@ const SeriesScreen: React.FC = () => {
       }
 
       // Filtrar e validar séries
-      const validSeries = series
-        .filter(isValidSeries)
-        .slice(0, 10); // Limitar a 10 por categoria
+      const validSeries = series.filter(isValidSeries);
+      const totalSeries = validSeries.length; // Total real de séries
 
       if (validSeries.length === 0) {
         console.log(`⚠️ ${category.category_name}: sem séries válidas após filtro`);
         return { success: false, error: 'Sem séries válidas' };
       }
 
-      console.log(`✅ ${category.category_name}: ${validSeries.length} séries válidas`);
+      // Para a tela principal, mostrar apenas as primeiras 10 séries
+      const displaySeries = validSeries.slice(0, 10);
+
+      console.log(`✅ ${category.category_name}: ${totalSeries} séries total, exibindo ${displaySeries.length}`);
       
       return {
         success: true,
         category: {
           ...category,
-          series: validSeries,
+          series: displaySeries, // Séries para exibir na tela
+          totalSeries: totalSeries, // Total real de séries da categoria
         },
       };
     } catch (error: unknown) {
@@ -156,6 +160,7 @@ const SeriesScreen: React.FC = () => {
       const allSeries: Series[] = [];
       let successCount = 0;
       let errorCount = 0;
+      let totalSeriesCount = 0;
 
       // Carregar em lotes de 5 categorias por vez
       const batchSize = 5;
@@ -177,6 +182,7 @@ const SeriesScreen: React.FC = () => {
             if (loadResult.success && loadResult.category) {
               categoriesWithSeries.push(loadResult.category);
               allSeries.push(...loadResult.category.series);
+              totalSeriesCount += loadResult.category.totalSeries;
               successCount++;
             } else {
               errorCount++;
@@ -197,7 +203,8 @@ const SeriesScreen: React.FC = () => {
       console.log(`   ✅ Sucessos: ${successCount}`);
       console.log(`   ❌ Erros: ${errorCount}`);
       console.log(`   📁 Categorias com séries: ${categoriesWithSeries.length}`);
-      console.log(`   📺 Total de séries: ${allSeries.length}`);
+      console.log(`   📺 Total de séries: ${totalSeriesCount}`);
+      console.log(`   🎬 Séries carregadas para exibição: ${allSeries.length}`);
 
       setCategories(categoriesWithSeries);
 
@@ -307,7 +314,7 @@ const SeriesScreen: React.FC = () => {
     Alert.alert('Em Desenvolvimento', 'Funcionalidade de episódios será implementada em breve');
   };
 
-  const handleCategoryPress = (category: Category): void => {
+  const handleCategoryPress = (category: CategoryWithSeries): void => {
     navigation.navigate('Category', {
       categoryId: category.category_id,
       categoryName: category.category_name,
@@ -349,7 +356,7 @@ const SeriesScreen: React.FC = () => {
       <View key={category.category_id} style={styles.categorySection}>
         <SectionHeader
           title={category.category_name}
-          subtitle={`${category.series.length} séries`}
+          subtitle={`${category.totalSeries} séries`} // Usando totalSeries em vez de series.length
           onSeeAll={() => handleCategoryPress(category)}
         />
         
@@ -391,6 +398,10 @@ const SeriesScreen: React.FC = () => {
     );
   }
 
+  // Calcular totais para o header principal
+  const totalCategoriesWithSeries = categories.length;
+  const totalSeriesOverall = categories.reduce((total, cat) => total + cat.totalSeries, 0);
+
   return (
     <ScrollView 
       style={styles.container}
@@ -412,7 +423,7 @@ const SeriesScreen: React.FC = () => {
       <View style={styles.header}>
         <SectionHeader
           title="Séries"
-          subtitle={`${categories.length} categorias • ${categories.reduce((total, cat) => total + cat.series.length, 0)} séries`}
+          subtitle={`${totalCategoriesWithSeries} categorias • ${totalSeriesOverall} séries`}
           showSeeAll={false}
         />
       </View>
