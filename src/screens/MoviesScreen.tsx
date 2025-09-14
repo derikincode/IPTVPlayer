@@ -25,6 +25,12 @@ interface CategoryWithMovies extends Category {
   movies: VODStream[];
 }
 
+interface LoadCategoryResult {
+  success: boolean;
+  category?: CategoryWithMovies;
+  error?: string;
+}
+
 const MoviesScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const [loading, setLoading] = useState(true);
@@ -47,90 +53,242 @@ const MoviesScreen: React.FC = () => {
     loadMoviesData();
   }, []);
 
-  const loadMoviesData = async () => {
+  const isValidMovie = (movie: any): movie is VODStream => {
+    return (
+      movie &&
+      typeof movie === 'object' &&
+      typeof movie.stream_id === 'number' &&
+      typeof movie.name === 'string' &&
+      movie.name.trim().length > 0
+    );
+  };
+
+  const isValidCategory = (category: any): category is Category => {
+    return (
+      category &&
+      typeof category === 'object' &&
+      typeof category.category_id === 'string' &&
+      typeof category.category_name === 'string' &&
+      category.category_name.trim().length > 0
+    );
+  };
+
+  const loadSingleCategory = async (category: Category): Promise<LoadCategoryResult> => {
+    try {
+      console.log(`🔄 Carregando: ${category.category_name}`);
+      
+      const movies = await XtreamAPI.getVODStreams(category.category_id);
+      
+      if (!Array.isArray(movies)) {
+        console.log(`⚠️ ${category.category_name}: resposta não é array`);
+        return { success: false, error: 'Resposta inválida' };
+      }
+
+      if (movies.length === 0) {
+        console.log(`⚠️ ${category.category_name}: sem filmes`);
+        return { success: false, error: 'Sem filmes' };
+      }
+
+      // Filtrar e validar filmes
+      const validMovies = movies
+        .filter(isValidMovie)
+        .slice(0, 10); // Limitar a 10 por categoria
+
+      if (validMovies.length === 0) {
+        console.log(`⚠️ ${category.category_name}: sem filmes válidos após filtro`);
+        return { success: false, error: 'Sem filmes válidos' };
+      }
+
+      console.log(`✅ ${category.category_name}: ${validMovies.length} filmes válidos`);
+      
+      return {
+        success: true,
+        category: {
+          ...category,
+          movies: validMovies,
+        },
+      };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      console.error(`❌ Erro em ${category.category_name}:`, errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  };
+
+  const loadMoviesData = async (): Promise<void> => {
     setLoading(true);
     try {
       const type = await StorageService.getLoginType();
       setLoginType(type);
 
-      if (type === 'xtream') {
-        const credentials = await StorageService.getXtreamCredentials();
-        if (credentials) {
-          await XtreamAPI.authenticate(credentials);
-          
-          // Load categories
-          const vodCategories = await XtreamAPI.getVODCategories();
-          
-          // Load movies for each category (limit to first 6 categories and 10 movies each)
-          const categoriesWithMovies: CategoryWithMovies[] = [];
-          const allMovies: VODStream[] = [];
-          
-          for (let i = 0; i < Math.min(vodCategories.length, 6); i++) {
-            const category = vodCategories[i];
-            try {
-              const movies = await XtreamAPI.getVODStreams(category.category_id);
-              const limitedMovies = movies.slice(0, 10);
-              
-              categoriesWithMovies.push({
-                ...category,
-                movies: limitedMovies,
-              });
-              
-              allMovies.push(...limitedMovies);
-            } catch (error) {
-              console.error(`Erro ao carregar filmes da categoria ${category.category_name}:`, error);
+      if (type !== 'xtream') {
+        setLoading(false);
+        return;
+      }
+
+      const credentials = await StorageService.getXtreamCredentials();
+      if (!credentials) {
+        setLoading(false);
+        return;
+      }
+
+      await XtreamAPI.authenticate(credentials);
+      
+      console.log('🎬 Iniciando carregamento de todas as categorias de filmes...');
+      const allCategories = await XtreamAPI.getVODCategories();
+      
+      if (!Array.isArray(allCategories)) {
+        throw new Error('Resposta de categorias inválida');
+      }
+
+      // Filtrar categorias válidas
+      const validCategories = allCategories.filter(isValidCategory);
+      console.log(`📁 Encontradas ${validCategories.length} categorias válidas`);
+
+      if (validCategories.length === 0) {
+        console.log('❌ Nenhuma categoria válida encontrada');
+        setLoading(false);
+        return;
+      }
+
+      const categoriesWithMovies: CategoryWithMovies[] = [];
+      const allMovies: VODStream[] = [];
+      let successCount = 0;
+      let errorCount = 0;
+
+      // Carregar em lotes de 5 categorias por vez
+      const batchSize = 5;
+
+      for (let i = 0; i < validCategories.length; i += batchSize) {
+        const batch = validCategories.slice(i, i + batchSize);
+        const batchNumber = Math.floor(i / batchSize) + 1;
+        const totalBatches = Math.ceil(validCategories.length / batchSize);
+        
+        console.log(`🔄 Processando lote ${batchNumber}/${totalBatches}`);
+        
+        const batchPromises = batch.map(loadSingleCategory);
+        const batchResults = await Promise.allSettled(batchPromises);
+        
+        // Processar resultados do lote
+        batchResults.forEach((result, index) => {
+          if (result.status === 'fulfilled') {
+            const loadResult = result.value;
+            if (loadResult.success && loadResult.category) {
+              categoriesWithMovies.push(loadResult.category);
+              allMovies.push(...loadResult.category.movies);
+              successCount++;
+            } else {
+              errorCount++;
             }
+          } else {
+            console.error(`❌ Promise rejeitada para ${batch[index]?.category_name}:`, result.reason);
+            errorCount++;
           }
-          
-          setCategories(categoriesWithMovies);
-          
-          // Set featured movies (movies with highest ratings or most recent)
-          const featured = allMovies
-            .filter(movie => movie.rating && parseFloat(movie.rating) > 7)
-            .sort((a, b) => parseFloat(b.rating || '0') - parseFloat(a.rating || '0'))
-            .slice(0, 10);
-          
-          setFeaturedMovies(featured);
-          
-          // Set hero movies (top 3 highest rated movies for banner)
-          const hero = allMovies
-            .filter(movie => movie.rating && parseFloat(movie.rating) > 8)
-            .sort((a, b) => parseFloat(b.rating || '0') - parseFloat(a.rating || '0'))
-            .slice(0, 3);
-          
-          setHeroMovies(hero);
+        });
+
+        // Pausa entre lotes
+        if (i + batchSize < validCategories.length) {
+          await new Promise<void>(resolve => setTimeout(resolve, 200));
         }
       }
-    } catch (error) {
-      console.error('Erro ao carregar dados de filmes:', error);
-      Alert.alert('Erro', 'Falha ao carregar filmes');
+
+      console.log(`🎉 Carregamento concluído:`);
+      console.log(`   ✅ Sucessos: ${successCount}`);
+      console.log(`   ❌ Erros: ${errorCount}`);
+      console.log(`   📁 Categorias com filmes: ${categoriesWithMovies.length}`);
+      console.log(`   🎬 Total de filmes: ${allMovies.length}`);
+
+      setCategories(categoriesWithMovies);
+
+      // Configurar filmes em destaque
+      if (allMovies.length > 0) {
+        // Filmes em destaque (com melhor rating)
+        const featured = allMovies
+          .filter(movie => {
+            const rating = movie.rating ? parseFloat(movie.rating) : 0;
+            return !isNaN(rating) && rating >= 6;
+          })
+          .sort((a, b) => {
+            const ratingA = a.rating ? parseFloat(a.rating) : 0;
+            const ratingB = b.rating ? parseFloat(b.rating) : 0;
+            return ratingB - ratingA;
+          })
+          .slice(0, 12);
+
+        setFeaturedMovies(featured);
+        console.log(`⭐ Filmes em destaque: ${featured.length}`);
+
+        // Filmes para o banner hero
+        const hero = allMovies
+          .filter(movie => {
+            const rating = movie.rating ? parseFloat(movie.rating) : 0;
+            return !isNaN(rating) && rating >= 7 && movie.stream_icon;
+          })
+          .sort((a, b) => {
+            const ratingA = a.rating ? parseFloat(a.rating) : 0;
+            const ratingB = b.rating ? parseFloat(b.rating) : 0;
+            return ratingB - ratingA;
+          })
+          .slice(0, 3);
+
+        setHeroMovies(hero);
+        console.log(`🏆 Filmes hero: ${hero.length}`);
+      }
+
+      if (categoriesWithMovies.length === 0) {
+        Alert.alert(
+          'Nenhum Filme Encontrado',
+          'Não foi possível carregar nenhuma categoria de filmes. Verifique sua conexão.'
+        );
+      }
+
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      console.error('💥 Erro geral no carregamento:', errorMessage);
+      
+      Alert.alert(
+        'Erro ao Carregar Filmes',
+        `Ocorreu um erro: ${errorMessage}\n\nTente novamente.`,
+        [
+          { text: 'OK' },
+          { text: 'Tentar Novamente', onPress: () => loadMoviesData() }
+        ]
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const onRefresh = async () => {
+  const onRefresh = async (): Promise<void> => {
     setRefreshing(true);
     await loadMoviesData();
     setRefreshing(false);
   };
 
-  const handleMoviePress = (movie: VODStream) => {
-    const url = XtreamAPI.getVODURL(movie.stream_id, movie.container_extension);
-    navigation.navigate('Player', {
-      url,
-      title: movie.name,
-      type: 'vod',
-      streamId: movie.stream_id,
-    });
+  const handleMoviePress = (movie: VODStream): void => {
+    try {
+      const url = XtreamAPI.getVODURL(movie.stream_id, movie.container_extension);
+      navigation.navigate('Player', {
+        url,
+        title: movie.name,
+        type: 'vod',
+        streamId: movie.stream_id,
+      });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      console.error('Erro ao reproduzir filme:', errorMessage);
+      Alert.alert('Erro', 'Não foi possível reproduzir este filme.');
+    }
   };
 
-  const handleMovieInfo = (movie: VODStream) => {
+  const handleMovieInfo = (movie: VODStream): void => {
+    const addedDate = movie.added 
+      ? new Date(parseInt(movie.added) * 1000).toLocaleDateString('pt-BR')
+      : 'N/A';
+
     Alert.alert(
       movie.name,
-      `⭐ Avaliação: ${movie.rating || 'N/A'}\n📅 Adicionado: ${
-        movie.added ? new Date(parseInt(movie.added) * 1000).toLocaleDateString('pt-BR') : 'N/A'
-      }\n🎬 Formato: ${movie.container_extension || 'N/A'}`,
+      `⭐ Avaliação: ${movie.rating || 'N/A'}\n📅 Adicionado: ${addedDate}\n🎬 Formato: ${movie.container_extension || 'N/A'}`,
       [
         { text: 'Fechar', style: 'cancel' },
         { text: 'Assistir', onPress: () => handleMoviePress(movie) },
@@ -138,7 +296,7 @@ const MoviesScreen: React.FC = () => {
     );
   };
 
-  const handleCategoryPress = (category: Category) => {
+  const handleCategoryPress = (category: Category): void => {
     navigation.navigate('Category', {
       categoryId: category.category_id,
       categoryName: category.category_name,
@@ -170,7 +328,7 @@ const MoviesScreen: React.FC = () => {
   );
 
   const renderCategorySection = (category: CategoryWithMovies) => {
-    if (category.movies.length === 0) return null;
+    if (!category.movies || category.movies.length === 0) return null;
 
     return (
       <View key={category.category_id} style={styles.categorySection}>
@@ -183,11 +341,14 @@ const MoviesScreen: React.FC = () => {
         <FlatList
           data={category.movies}
           renderItem={renderMovieItem}
-          keyExtractor={(item) => item.stream_id.toString()}
+          keyExtractor={(item, index) => `${item.stream_id}_${index}`}
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.horizontalList}
           ItemSeparatorComponent={() => <View style={styles.movieSeparator} />}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={5}
+          windowSize={10}
         />
       </View>
     );
@@ -221,6 +382,7 @@ const MoviesScreen: React.FC = () => {
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
+      removeClippedSubviews={true}
     >
       {/* Hero Banner */}
       {heroMovies.length > 0 && (
@@ -235,7 +397,7 @@ const MoviesScreen: React.FC = () => {
       <View style={styles.header}>
         <SectionHeader
           title="Filmes"
-          subtitle="Descubra grandes histórias"
+          subtitle={`${categories.length} categorias • ${categories.reduce((total, cat) => total + cat.movies.length, 0)} filmes`}
           showSeeAll={false}
         />
       </View>
@@ -252,17 +414,18 @@ const MoviesScreen: React.FC = () => {
           <FlatList
             data={featuredMovies}
             renderItem={renderFeaturedMovie}
-            keyExtractor={(item) => `featured_${item.stream_id}`}
+            keyExtractor={(item, index) => `featured_${item.stream_id}_${index}`}
             horizontal
             showsHorizontalScrollIndicator={false}
             snapToInterval={width - 40 + 16}
             decelerationRate="fast"
             contentContainerStyle={styles.featuredList}
+            removeClippedSubviews={true}
           />
         </View>
       )}
 
-      {/* Categories Sections */}
+      {/* All Categories Sections */}
       {categories.map(renderCategorySection)}
       
       {/* Bottom spacing */}
