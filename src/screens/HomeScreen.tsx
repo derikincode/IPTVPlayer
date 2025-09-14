@@ -1,3 +1,4 @@
+// src/screens/HomeScreen.tsx - VERSÃO LIMPA
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -11,9 +12,11 @@ import { useNavigation, useIsFocused } from '@react-navigation/native';
 import NetInfo from '@react-native-community/netinfo';
 import Icon from 'react-native-vector-icons/Ionicons';
 import StorageService from '../services/StorageService';
+import UserManager from '../services/UserManager';
 import XtreamAPI from '../services/XtreamAPI';
 import OfflineMessage from '../components/OfflineMessage';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { UserProfile } from '../types';
 
 const HomeScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -21,6 +24,7 @@ const HomeScreen: React.FC = () => {
   const [isConnected, setIsConnected] = useState(true);
   const [loading, setLoading] = useState(true);
   const [recentChannels, setRecentChannels] = useState<any[]>([]);
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [loginType, setLoginType] = useState<'xtream' | 'm3u' | null>(null);
 
   useEffect(() => {
@@ -40,23 +44,44 @@ const HomeScreen: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const type = await StorageService.getLoginType();
-      setLoginType(type);
+      // Migrar dados antigos se necessário
+      await UserManager.migrateOldData();
+      
+      // Obter usuário atual
+      const activeUser = await UserManager.getActiveUser();
+      setCurrentUser(activeUser);
 
-      if (type === 'xtream') {
-        const credentials = await StorageService.getXtreamCredentials();
-        if (credentials) {
-          await XtreamAPI.authenticate(credentials);
+      if (activeUser) {
+        setLoginType(activeUser.type);
+        
+        // Configurar credenciais do usuário ativo
+        if (activeUser.type === 'xtream') {
+          await XtreamAPI.authenticate(activeUser.credentials as any);
+        }
+      } else {
+        // Verificar método antigo
+        const type = await StorageService.getLoginType();
+        setLoginType(type);
+
+        if (type === 'xtream') {
+          const credentials = await StorageService.getXtreamCredentials();
+          if (credentials) {
+            await XtreamAPI.authenticate(credentials);
+          }
         }
       }
 
       const recent = await StorageService.getRecentChannels();
-      setRecentChannels(recent.slice(0, 6)); // Show only 6 recent channels
+      setRecentChannels(recent.slice(0, 6));
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleUserList = () => {
+    navigation.navigate('UserList' as never);
   };
 
   const handleSettings = () => {
@@ -74,6 +99,7 @@ const HomeScreen: React.FC = () => {
           style: 'destructive',
           onPress: async () => {
             await StorageService.clearAllData();
+            await UserManager.clearAllUserData();
             navigation.reset({
               index: 0,
               routes: [{ name: 'Login' as never }],
@@ -97,6 +123,9 @@ const HomeScreen: React.FC = () => {
       <View style={styles.header}>
         <Text style={styles.title}>IPTV Player</Text>
         <View style={styles.headerButtons}>
+          <TouchableOpacity style={styles.headerButton} onPress={handleUserList}>
+            <Icon name="people" size={20} color="#fff" />
+          </TouchableOpacity>
           <TouchableOpacity style={styles.headerButton} onPress={handleSettings}>
             <Icon name="settings" size={20} color="#fff" />
           </TouchableOpacity>
@@ -209,9 +238,6 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     marginRight: 10,
   },
-  headerButtonText: {
-    fontSize: 16,
-  },
   logoutButton: {
     backgroundColor: '#333',
     paddingHorizontal: 15,
@@ -260,9 +286,6 @@ const styles = StyleSheet.create({
     marginBottom: 0,
     marginRight: 15,
     backgroundColor: '#FF6B35',
-  },
-  menuIconText: {
-    fontSize: 24,
   },
   menuText: {
     color: '#fff',

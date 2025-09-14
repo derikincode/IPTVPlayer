@@ -1,4 +1,4 @@
-// src/navigation/AppNavigator.tsx - COM ÍCONES REACT NATIVE
+// src/navigation/AppNavigator.tsx - VERSÃO ATUALIZADA
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -15,6 +15,7 @@ import CategoryScreen from '../screens/CategoryScreen';
 import PlayerScreen from '../screens/PlayerScreen';
 import SearchScreen from '../screens/SearchScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import UserListScreen from '../screens/UserListScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -108,6 +109,7 @@ const AppNavigator = () => {
         <Stack.Screen name="Main" component={TabNavigator} />
         <Stack.Screen name="Category" component={CategoryScreen} />
         <Stack.Screen name="Settings" component={SettingsScreen} />
+        <Stack.Screen name="UserList" component={UserListScreen} />
         <Stack.Screen 
           name="Player" 
           component={PlayerScreen}

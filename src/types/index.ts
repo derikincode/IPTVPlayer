@@ -1,3 +1,4 @@
+// src/types/index.ts - VERSÃO ATUALIZADA
 export interface XtreamCredentials {
   host: string;
   username: string;
@@ -6,6 +7,17 @@ export interface XtreamCredentials {
 
 export interface M3UCredentials {
   url: string;
+}
+
+// NOVO: Interface para perfis de usuário
+export interface UserProfile {
+  id: string;
+  name: string;
+  type: 'xtream' | 'm3u';
+  credentials: XtreamCredentials | M3UCredentials;
+  createdAt: number;
+  lastUsed: number;
+  isActive: boolean;
 }
 
 export interface AuthData {
@@ -126,7 +138,7 @@ export interface FavoriteItem {
   addedAt: number;
 }
 
-// ===== 4. src/utils/constants.ts - MELHORADO =====
+// ===== CONSTANTS =====
 export const API_ENDPOINTS = {
   LIVE_CATEGORIES: 'get_live_categories',
   LIVE_STREAMS: 'get_live_streams',
@@ -146,6 +158,9 @@ export const STORAGE_KEYS = {
   RECENT_CHANNELS: '@iptv_recent_channels',
   APP_SETTINGS: '@iptv_app_settings',
   WATCH_HISTORY: '@iptv_watch_history',
+  // NOVO: Chaves para sistema de usuários
+  USER_PROFILES: '@iptv_user_profiles',
+  ACTIVE_USER: '@iptv_active_user',
 } as const;
 
 export const COLORS = {
