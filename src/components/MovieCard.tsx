@@ -57,9 +57,9 @@ const MovieCard: React.FC<MovieCardProps> = ({
           </View>
         )}
         
-        {/* Gradient overlay */}
+        {/* Gradient overlay - mais sutil */}
         <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.8)']}
+          colors={['transparent', 'rgba(0,0,0,0.6)']}
           style={styles.gradientOverlay}
         />
         
@@ -69,30 +69,27 @@ const MovieCard: React.FC<MovieCardProps> = ({
             <Text style={styles.ratingText}>★ {rating}</Text>
           </View>
         )}
-      </View>
 
-      <View style={styles.contentContainer}>
-        <Text style={styles.title} numberOfLines={featured ? 1 : 2}>
-          {title}
-        </Text>
-        
-        <View style={styles.metaContainer}>
-          {year && (
-            <Text style={styles.metaText}>{year}</Text>
-          )}
-          {genre && year && (
-            <Text style={styles.metaSeparator}>•</Text>
-          )}
-          {genre && (
-            <Text style={styles.metaText} numberOfLines={1}>
-              {genre}
-            </Text>
-          )}
-        </View>
-        
+        {/* Content container - apenas para os botões featured */}
         {featured && (
-          <View style={styles.playButton}>
-            <Text style={styles.playButtonText}>▶ Assistir</Text>
+          <View style={styles.contentContainer}>
+            <View style={styles.metaContainer}>
+              {year && (
+                <Text style={styles.metaText}>{year}</Text>
+              )}
+              {genre && year && (
+                <Text style={styles.metaSeparator}>•</Text>
+              )}
+              {genre && (
+                <Text style={styles.metaText} numberOfLines={1}>
+                  {genre}
+                </Text>
+              )}
+            </View>
+            
+            <View style={styles.playButton}>
+              <Text style={styles.playButtonText}>▶ Assistir</Text>
+            </View>
           </View>
         )}
       </View>
@@ -143,7 +140,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: '50%',
+    height: '40%',
   },
   ratingBadge: {
     position: 'absolute',
@@ -165,15 +162,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 12,
-  },
-  title: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 4,
-    textShadowColor: 'rgba(0,0,0,0.7)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
   metaContainer: {
     flexDirection: 'row',
