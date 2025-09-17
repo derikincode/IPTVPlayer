@@ -11,12 +11,12 @@ import {
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import NetInfo from '@react-native-community/netinfo';
 import Icon from 'react-native-vector-icons/Ionicons';
-import StorageService from '../services/StorageService';
-import UserManager from '../services/UserManager';
-import XtreamAPI from '../services/XtreamAPI';
-import OfflineMessage from '../components/OfflineMessage';
-import LoadingSpinner from '../components/LoadingSpinner';
-import { UserProfile } from '../types';
+import StorageService from '../../services/storage/StorageService';
+import UserManager from '../../services/UserManager';
+import XtreamAPI from '../../services/api/XtreamAPI';
+import OfflineMessage from '../../components/common/OfflineMessage';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
+import { UserProfile } from '../../types';
 
 const HomeScreen: React.FC = () => {
   const navigation = useNavigation();

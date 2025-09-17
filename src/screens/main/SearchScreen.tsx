@@ -8,14 +8,14 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import NetInfo from '@react-native-community/netinfo';
-import XtreamAPI from '../services/XtreamAPI';
-import M3UParser from '../services/M3UParser';
-import StorageService from '../services/StorageService';
-import SearchBar from '../components/SearchBar';
-import ChannelItem from '../components/ChannelItem';
-import LoadingSpinner from '../components/LoadingSpinner';
-import OfflineMessage from '../components/OfflineMessage';
-import { LiveStream, VODStream, Series, M3UChannel } from '../types';
+import XtreamAPI from '../../services/api/XtreamAPI';
+import M3UParser from '../../services/parsers/M3UParser';
+import StorageService from '../../services/storage/StorageService';
+import SearchBar from '../../components/common/SearchBar';
+import ChannelItem from '../../components/cards/ChannelItem';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
+import OfflineMessage from '../../components/common/OfflineMessage';
+import { LiveStream, VODStream, Series, M3UChannel } from '../../types';
 
 interface SearchResult {
   type: 'live' | 'vod' | 'series' | 'm3u';

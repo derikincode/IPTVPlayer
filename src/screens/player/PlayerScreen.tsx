@@ -13,10 +13,10 @@ import {
 import { useRoute, useNavigation } from '@react-navigation/native';
 import Video, { VideoRef } from 'react-native-video';
 import Orientation from 'react-native-orientation-locker';
-import StorageService from '../services/StorageService';
-import XtreamAPI from '../services/XtreamAPI';
-import AppIcon from '../components/AppIcon';
-import { EPGData } from '../types';
+import StorageService from '../../services/storage/StorageService';
+import XtreamAPI from '../../services/api/XtreamAPI';
+import AppIcon from '../../components/common/AppIcon';
+import { EPGData } from '../../types';
 
 interface RouteParams {
   url: string;

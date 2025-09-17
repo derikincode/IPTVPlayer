@@ -7,8 +7,8 @@ import {
   Animated,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import AppIcon from './AppIcon';
-import { COLORS, SIZES, TYPOGRAPHY } from '../utils/constants';
+import AppIcon from '../common/AppIcon';
+import { COLORS, SIZES, TYPOGRAPHY } from '../../utils/constants';
 
 interface CategoryCardProps {
   title: string;

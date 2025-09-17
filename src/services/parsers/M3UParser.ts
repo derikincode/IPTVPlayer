@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { M3UChannel } from '../types';
+import { M3UChannel } from '../../types';
 
 class M3UParserService {
   async parseM3U(url: string): Promise<M3UChannel[]> {

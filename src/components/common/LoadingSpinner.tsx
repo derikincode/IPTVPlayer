@@ -5,7 +5,7 @@ import {
   StyleSheet,
   Animated,
 } from 'react-native';
-import AppIcon from './AppIcon';
+import AppIcon from '../common/AppIcon';
 
 const LoadingSpinner: React.FC = () => {
   const rotateAnim = useRef(new Animated.Value(0)).current;

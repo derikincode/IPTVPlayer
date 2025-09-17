@@ -10,14 +10,14 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import NetInfo from '@react-native-community/netinfo';
-import XtreamAPI from '../services/XtreamAPI';
-import StorageService from '../services/StorageService';
-import MovieCard from '../components/MovieCard';
-import SectionHeader from '../components/SectionHeader';
-import HeroBanner from '../components/MoviesHeroBanner';
-import LoadingSpinner from '../components/LoadingSpinner';
-import OfflineMessage from '../components/OfflineMessage';
-import { Category, VODStream } from '../types';
+import XtreamAPI from '../../services/api/XtreamAPI';
+import StorageService from '../../services/storage/StorageService';
+import MovieCard from '../../components/cards/MovieCard';
+import SectionHeader from '../../components/layout/SectionHeader';
+import HeroBanner from '../../components/banners/MoviesHeroBanner';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
+import OfflineMessage from '../../components/common/OfflineMessage';
+import { Category, VODStream } from '../../types';
 
 const { width } = Dimensions.get('window');
 

@@ -5,7 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
-import AppIcon from './AppIcon';
+import AppIcon from '../common/AppIcon';
 
 interface OfflineMessageProps {
   onRetry: () => void;

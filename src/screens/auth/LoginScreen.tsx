@@ -11,10 +11,10 @@ import {
   ScrollView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import XtreamAPI from '../services/XtreamAPI';
-import M3UParser from '../services/M3UParser';
-import StorageService from '../services/StorageService';
-import LoadingSpinner from '../components/LoadingSpinner';
+import XtreamAPI from '../../services/api/XtreamAPI';
+import M3UParser from '../../services/parsers/M3UParser';
+import StorageService from '../../services/storage/StorageService';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
 
 const LoginScreen: React.FC = () => {
   const navigation = useNavigation();

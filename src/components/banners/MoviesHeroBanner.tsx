@@ -9,7 +9,7 @@ import {
   Animated,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import { VODStream } from '../types';
+import { VODStream } from '../../types';
 
 const { width, height } = Dimensions.get('window');
 const BANNER_HEIGHT = height * 0.6;

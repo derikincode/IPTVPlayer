@@ -6,16 +6,16 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/Ionicons';
 
 // Import screens
-import LoginScreen from '../screens/LoginScreen';
-import HomeScreen from '../screens/HomeScreen';
-import LiveTVScreen from '../screens/LiveTVScreen';
-import MoviesScreen from '../screens/MoviesScreen';
-import SeriesScreen from '../screens/SeriesScreen';
-import CategoryScreen from '../screens/CategoryScreen';
-import PlayerScreen from '../screens/PlayerScreen';
-import SearchScreen from '../screens/SearchScreen';
-import SettingsScreen from '../screens/SettingsScreen';
-import UserListScreen from '../screens/UserListScreen';
+import LoginScreen from '../screens/auth/LoginScreen';
+import HomeScreen from '../screens/main/HomeScreen';
+import LiveTVScreen from '../screens/content/LiveTVScreen';
+import MoviesScreen from '../screens/content/MoviesScreen';
+import SeriesScreen from '../screens/content/SeriesScreen';
+import CategoryScreen from '../screens/main/CategoryScreen';
+import PlayerScreen from '../screens/player/PlayerScreen';
+import SearchScreen from '../screens/main/SearchScreen';
+import SettingsScreen from '../screens/settings/SettingsScreen';
+import UserListScreen from '../screens/settings/UserListScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();

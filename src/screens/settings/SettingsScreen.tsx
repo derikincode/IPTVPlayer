@@ -9,8 +9,8 @@ import {
   Switch,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import StorageService from '../services/StorageService';
-import { AppSettings } from '../types';
+import StorageService from '../../services/storage/StorageService';
+import { AppSettings } from '../../types';
 
 const SettingsScreen: React.FC = () => {
   const navigation = useNavigation();

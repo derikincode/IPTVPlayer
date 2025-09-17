@@ -11,12 +11,12 @@ import {
 import { useRoute, useNavigation } from '@react-navigation/native';
 import NetInfo from '@react-native-community/netinfo';
 import Icon from 'react-native-vector-icons/Ionicons';
-import XtreamAPI from '../services/XtreamAPI';
-import ChannelItem from '../components/ChannelItem';
-import SearchBar from '../components/SearchBar';
-import LoadingSpinner from '../components/LoadingSpinner';
-import OfflineMessage from '../components/OfflineMessage';
-import { LiveStream, VODStream, Series, M3UChannel } from '../types';
+import XtreamAPI from '../../services/api/XtreamAPI';
+import ChannelItem from '../../components/cards/ChannelItem';
+import SearchBar from '../../components/common/SearchBar';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
+import OfflineMessage from '../../components/common/OfflineMessage';
+import { LiveStream, VODStream, Series, M3UChannel } from '../../types';
 
 interface RouteParams {
   categoryId?: string;

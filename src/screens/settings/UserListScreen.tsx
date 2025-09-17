@@ -12,13 +12,13 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import UserManager from '../services/UserManager';
-import XtreamAPI from '../services/XtreamAPI';
-import M3UParser from '../services/M3UParser';
-import StorageService from '../services/StorageService';
-import LoadingSpinner from '../components/LoadingSpinner';
-import { UserProfile } from '../types';
-import { COLORS, SIZES, TYPOGRAPHY } from '../utils/constants';
+import UserManager from '../../services/UserManager';
+import XtreamAPI from '../../services/api/XtreamAPI';
+import M3UParser from '../../services/parsers/M3UParser';
+import StorageService from '../../services/storage/StorageService';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
+import { UserProfile } from '../../types';
+import { COLORS, SIZES, TYPOGRAPHY } from '../../utils/constants';
 
 const UserListScreen: React.FC = () => {
   const navigation = useNavigation<any>();
