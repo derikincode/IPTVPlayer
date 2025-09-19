@@ -12,7 +12,7 @@ import { useNavigation, useIsFocused } from '@react-navigation/native';
 import NetInfo from '@react-native-community/netinfo';
 import Icon from 'react-native-vector-icons/Ionicons';
 import StorageService from '../../services/storage/StorageService';
-import UserManager from '../../services/UserManager';
+import UserManager from '../../services/storage/UserManager';
 import XtreamAPI from '../../services/api/XtreamAPI';
 import OfflineMessage from '../../components/common/OfflineMessage';
 import LoadingSpinner from '../../components/common/LoadingSpinner';

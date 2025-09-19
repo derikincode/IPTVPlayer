@@ -1,6 +1,6 @@
 // src/services/UserManager.ts
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { UserProfile, XtreamCredentials, M3UCredentials } from '../types';
+import { UserProfile, XtreamCredentials, M3UCredentials } from '../../types';
 
 class UserManagerService {
   private static readonly STORAGE_KEY = '@iptv_user_profiles';

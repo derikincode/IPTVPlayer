@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import UserManager from '../../services/UserManager';
+import UserManager from '../../services/storage/UserManager';
 import XtreamAPI from '../../services/api/XtreamAPI';
 import M3UParser from '../../services/parsers/M3UParser';
 import StorageService from '../../services/storage/StorageService';
