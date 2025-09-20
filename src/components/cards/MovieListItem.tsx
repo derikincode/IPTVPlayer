@@ -1,4 +1,4 @@
-// src/components/cards/MovieListItem.tsx
+// src/components/cards/MovieListItem.tsx - ATUALIZADO
 import React from 'react';
 import {
   TouchableOpacity,
@@ -9,31 +9,42 @@ import {
   Dimensions,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import { VODStream } from '../../types';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 60) / 2; // 2 cards per row with margins
 
 interface MovieListItemProps {
-  title: string;
-  year?: string;
-  rating?: string;
-  genre?: string;
-  imageUrl?: string;
-  onPress: () => void;
+  movie: VODStream; // Agora recebe o objeto completo do filme
+  onPress: (movie: VODStream) => void; // Passa o objeto completo
+  onPlayPress?: (movie: VODStream) => void; // Função separada para play
   featured?: boolean;
 }
 
 const MovieListItem: React.FC<MovieListItemProps> = ({
-  title,
-  year,
-  rating,
-  genre,
-  imageUrl,
+  movie,
   onPress,
+  onPlayPress,
   featured = false,
 }) => {
   const cardWidth = featured ? width - 40 : CARD_WIDTH;
   const cardHeight = featured ? 200 : 280;
+
+  const getYear = () => {
+    if (!movie.added) return undefined;
+    try {
+      return new Date(parseInt(movie.added) * 1000).getFullYear().toString();
+    } catch {
+      return undefined;
+    }
+  };
+
+  const handlePlayPress = (e: any) => {
+    e.stopPropagation(); // Previne que o onPress do card seja chamado
+    if (onPlayPress) {
+      onPlayPress(movie);
+    }
+  };
 
   return (
     <TouchableOpacity
@@ -42,15 +53,15 @@ const MovieListItem: React.FC<MovieListItemProps> = ({
         { width: cardWidth, height: cardHeight },
         featured && styles.featuredContainer,
       ]}
-      onPress={onPress}
+      onPress={() => onPress(movie)} // Passa o objeto completo do filme
       activeOpacity={0.9}
     >
       <View style={styles.imageContainer}>
-        {imageUrl ? (
+        {movie.stream_icon ? (
           <Image
-            source={{ uri: imageUrl }}
+            source={{ uri: movie.stream_icon }}
             style={styles.image}
-            resizeMode="stretch"
+            resizeMode="cover"
           />
         ) : (
           <View style={styles.placeholderImage}>
@@ -65,18 +76,27 @@ const MovieListItem: React.FC<MovieListItemProps> = ({
         />
         
         {/* Rating badge */}
-        {rating && (
+        {movie.rating && (
           <View style={styles.ratingBadge}>
-            <Text style={styles.ratingText}>★ {rating}</Text>
+            <Text style={styles.ratingText}>★ {movie.rating}</Text>
           </View>
         )}
 
-        {/* Content container - apenas para os botões featured */}
+        {/* Content container - apenas para os cartões featured */}
         {featured && (
           <View style={styles.contentContainer}>
-            <View style={styles.playButton}>
-              <Text style={styles.playButtonText}>▶ Assistir</Text>
+            <View style={styles.metaContainer}>
+              {getYear() && (
+                <Text style={styles.metaText}>{getYear()}</Text>
+              )}
             </View>
+            
+            <TouchableOpacity 
+              style={styles.playButton}
+              onPress={handlePlayPress}
+            >
+              <Text style={styles.playButtonText}>▶ Assistir</Text>
+            </TouchableOpacity>
           </View>
         )}
       </View>
@@ -157,6 +177,13 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 15,
+  },
+  metaContainer: {
+    marginBottom: 8,
+  },
+  metaText: {
+    color: '#ccc',
+    fontSize: 12,
   },
   playButton: {
     backgroundColor: '#007AFF',

@@ -286,32 +286,20 @@ const SeriesScreen: React.FC = () => {
     setRefreshing(false);
   };
 
-  const handleSeriesPress = (serie: Series): void => {
-    const info = [
-      serie.plot && `📖 ${serie.plot}`,
-      serie.genre && `🎭 Gênero: ${serie.genre}`,
-      serie.releaseDate && `📅 Lançamento: ${serie.releaseDate}`,
-      serie.rating && `⭐ Avaliação: ${serie.rating}`,
-      serie.cast && `🎬 Elenco: ${serie.cast}`,
-      serie.director && `🎯 Direção: ${serie.director}`,
-    ].filter(Boolean).join('\n\n');
-
-    Alert.alert(
-      serie.name,
-      info || 'Informações não disponíveis',
-      [
-        { text: 'Fechar', style: 'cancel' },
-        { text: 'Ver Episódios', onPress: () => handleViewEpisodes(serie) },
-      ]
-    );
+  // NOVOS HANDLERS ATUALIZADOS
+  const handleSeriesPress = (series: Series): void => {
+    // Navegar para a tela de detalhes
+    navigation.navigate('SeriesDetails', { series });
   };
 
-  const handleSeriesInfo = (serie: Series): void => {
-    handleSeriesPress(serie);
-  };
-
-  const handleViewEpisodes = (serie: Series): void => {
+  const handleSeriesWatch = (series: Series): void => {
+    // Para episódios (implementar posteriormente)
     Alert.alert('Em Desenvolvimento', 'Funcionalidade de episódios será implementada em breve');
+  };
+
+  const handleSeriesInfo = (series: Series): void => {
+    // Para o banner hero, vai para detalhes
+    navigation.navigate('SeriesDetails', { series });
   };
 
   const handleCategoryPress = (category: CategoryWithSeries): void => {
@@ -322,15 +310,12 @@ const SeriesScreen: React.FC = () => {
     });
   };
 
+  // RENDERIZADORES ATUALIZADOS
   const renderFeaturedSeries = ({ item }: { item: Series }) => (
     <SeriesCard
-      title={item.name}
-      plot={item.plot}
-      genre={item.genre}
-      rating={item.rating}
-      releaseDate={item.releaseDate}
-      imageUrl={item.cover}
-      onPress={() => handleSeriesPress(item)}
+      series={item}
+      onPress={handleSeriesPress} // Vai para detalhes
+      onWatchPress={handleSeriesWatch} // Ver episódios
       featured
     />
   );
@@ -338,13 +323,9 @@ const SeriesScreen: React.FC = () => {
   const renderSeriesItem = ({ item }: { item: Series }) => (
     <View style={styles.seriesCardContainer}>
       <SeriesCard
-        title={item.name}
-        plot={item.plot}
-        genre={item.genre}
-        rating={item.rating}
-        releaseDate={item.releaseDate}
-        imageUrl={item.cover}
-        onPress={() => handleSeriesPress(item)}
+        series={item}
+        onPress={handleSeriesPress} // Vai para detalhes
+        onWatchPress={handleSeriesWatch} // Ver episódios
       />
     </View>
   );
@@ -410,12 +391,12 @@ const SeriesScreen: React.FC = () => {
       }
       removeClippedSubviews={true}
     >
-      {/* Hero Banner */}
+      {/* Hero Banner - ATUALIZADO */}
       {heroSeries.length > 0 && (
         <SeriesHeroBanner
           series={heroSeries}
-          onSeriesPress={handleSeriesPress}
-          onInfoPress={handleSeriesInfo}
+          onSeriesPress={handleSeriesPress} // Vai para detalhes
+          onInfoPress={handleSeriesInfo} // Vai para detalhes também
         />
       )}
 

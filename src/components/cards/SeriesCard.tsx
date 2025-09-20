@@ -8,40 +8,40 @@ import {
   Dimensions,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import { Series } from '../../types';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 60) / 2;
 
 interface SeriesCardProps {
-  title: string;
-  plot?: string;
-  genre?: string;
-  rating?: string;
-  releaseDate?: string;
-  imageUrl?: string;
-  onPress: () => void;
+  series: Series; // Agora recebe o objeto completo da série
+  onPress: (series: Series) => void; // Passa o objeto completo
+  onWatchPress?: (series: Series) => void; // Função separada para assistir
   featured?: boolean;
 }
 
 const SeriesCard: React.FC<SeriesCardProps> = ({
-  title,
-  plot,
-  genre,
-  rating,
-  releaseDate,
-  imageUrl,
+  series,
   onPress,
+  onWatchPress,
   featured = false,
 }) => {
   const cardWidth = featured ? width - 40 : CARD_WIDTH;
   const cardHeight = featured ? 220 : 300;
 
   const getYear = () => {
-    if (!releaseDate) return null;
+    if (!series.releaseDate) return null;
     try {
-      return new Date(releaseDate).getFullYear().toString();
+      return new Date(series.releaseDate).getFullYear().toString();
     } catch {
-      return releaseDate;
+      return series.releaseDate;
+    }
+  };
+
+  const handleWatchPress = (e: any) => {
+    e.stopPropagation(); // Previne que o onPress do card seja chamado
+    if (onWatchPress) {
+      onWatchPress(series);
     }
   };
 
@@ -52,13 +52,13 @@ const SeriesCard: React.FC<SeriesCardProps> = ({
         { width: cardWidth, height: cardHeight },
         featured && styles.featuredContainer,
       ]}
-      onPress={onPress}
+      onPress={() => onPress(series)}
       activeOpacity={0.9}
     >
       <View style={styles.imageContainer}>
-        {imageUrl ? (
+        {series.cover ? (
           <Image
-            source={{ uri: imageUrl }}
+            source={{ uri: series.cover }}
             style={styles.image}
             resizeMode="cover"
           />
@@ -75,9 +75,9 @@ const SeriesCard: React.FC<SeriesCardProps> = ({
         />
         
         {/* Rating badge */}
-        {rating && (
+        {series.rating && (
           <View style={styles.ratingBadge}>
-            <Text style={styles.ratingText}>★ {rating}</Text>
+            <Text style={styles.ratingText}>★ {series.rating}</Text>
           </View>
         )}
 
@@ -86,26 +86,29 @@ const SeriesCard: React.FC<SeriesCardProps> = ({
           <Text style={styles.typeText}>SÉRIE</Text>
         </View>
 
-        {/* Content container - apenas para os botões featured */}
+        {/* Content container - apenas para os cartões featured */}
         {featured && (
           <View style={styles.contentContainer}>
             <View style={styles.metaContainer}>
               {getYear() && (
                 <Text style={styles.metaText}>{getYear()}</Text>
               )}
-              {genre && getYear() && (
+              {series.genre && getYear() && (
                 <Text style={styles.metaSeparator}>•</Text>
               )}
-              {genre && (
+              {series.genre && (
                 <Text style={styles.metaText} numberOfLines={1}>
-                  {genre}
+                  {series.genre}
                 </Text>
               )}
             </View>
             
-            <View style={styles.playButton}>
-              <Text style={styles.playButtonText}>▶ Assistir</Text>
-            </View>
+            <TouchableOpacity 
+              style={styles.watchButton}
+              onPress={handleWatchPress}
+            >
+              <Text style={styles.watchButtonText}>▶ Ver Episódios</Text>
+            </TouchableOpacity>
           </View>
         )}
       </View>
@@ -208,14 +211,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginHorizontal: 6,
   },
-  playButton: {
+  watchButton: {
     backgroundColor: '#007AFF',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
     alignSelf: 'flex-start',
   },
-  playButtonText: {
+  watchButtonText: {
     color: '#fff',
     fontSize: 12,
     fontWeight: '600',

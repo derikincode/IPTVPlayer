@@ -1,4 +1,4 @@
-// src/screens/CategoryScreen.tsx - COM LAYOUT MELHORADO PARA FILMES E SÉRIES
+// src/screens/CategoryScreen.tsx - COMPLETO E ATUALIZADO
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -130,6 +130,7 @@ const CategoryScreen: React.FC = () => {
     setFilteredItems(filtered);
   };
 
+  // HANDLERS ATUALIZADOS
   const handleItemPress = (item: any) => {
     if (type === 'm3u') {
       const m3uItem = item as M3UChannel;
@@ -148,38 +149,42 @@ const CategoryScreen: React.FC = () => {
         streamId: stream.stream_id,
       });
     } else if (type === 'vod') {
-      const stream = item as VODStream;
-      const url = XtreamAPI.getVODURL(stream.stream_id, stream.container_extension);
-      navigation.navigate('Player', {
-        url,
-        title: stream.name,
-        type: 'vod',
-        streamId: stream.stream_id,
-      });
+      const movie = item as VODStream;
+      // NOVO: Navegar para tela de detalhes em vez de reproduzir diretamente
+      navigation.navigate('MovieDetails', { movie });
     } else if (type === 'series') {
-      const serie = item as Series;
-      const info = [
-        serie.plot && `📖 ${serie.plot}`,
-        serie.genre && `🎭 Gênero: ${serie.genre}`,
-        serie.releaseDate && `📅 Lançamento: ${serie.releaseDate}`,
-        serie.rating && `⭐ Avaliação: ${serie.rating}`,
-        serie.cast && `🎬 Elenco: ${serie.cast}`,
-        serie.director && `🎯 Direção: ${serie.director}`,
-      ].filter(Boolean).join('\n\n');
-
-      Alert.alert(
-        serie.name,
-        info || 'Informações não disponíveis',
-        [
-          { text: 'Fechar', style: 'cancel' },
-          { text: 'Ver Episódios', onPress: () => handleViewEpisodes(serie) },
-        ]
-      );
+      const series = item as Series;
+      // NOVO: Navegar para tela de detalhes em vez de mostrar alert
+      navigation.navigate('SeriesDetails', { series });
     }
   };
 
-  const handleViewEpisodes = (serie: Series) => {
-    Alert.alert('Em Desenvolvimento', 'Funcionalidade de episódios será implementada em breve');
+  // NOVO: Handler separado para reprodução direta
+  const handlePlayPress = (item: any) => {
+    if (type === 'vod') {
+      const movie = item as VODStream;
+      try {
+        const url = XtreamAPI.getVODURL(movie.stream_id, movie.container_extension);
+        navigation.navigate('Player', {
+          url,
+          title: movie.name,
+          type: 'vod',
+          streamId: movie.stream_id,
+        });
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+        console.error('Erro ao reproduzir filme:', errorMessage);
+        Alert.alert('Erro', 'Não foi possível reproduzir este filme.');
+      }
+    }
+  };
+
+  // NOVO: Handler para "Ver Episódios"
+  const handleWatchPress = (item: any) => {
+    if (type === 'series') {
+      const series = item as Series;
+      Alert.alert('Em Desenvolvimento', 'Funcionalidade de episódios será implementada em breve');
+    }
   };
 
   const toggleSearch = () => {
@@ -209,24 +214,15 @@ const CategoryScreen: React.FC = () => {
     );
   };
 
+  // RENDERIZADORES ATUALIZADOS
   const renderMovieItem = ({ item }: { item: any }) => {
     const vodItem = item as VODStream;
-    const getYear = () => {
-      if (!vodItem.added) return undefined;
-      try {
-        return new Date(parseInt(vodItem.added) * 1000).getFullYear().toString();
-      } catch {
-        return undefined;
-      }
-    };
-
+    
     return (
       <MovieListItem
-        title={vodItem.name}
-        year={getYear()}
-        rating={vodItem.rating}
-        imageUrl={vodItem.stream_icon}
-        onPress={() => handleItemPress(vodItem)}
+        movie={vodItem} // Passa o objeto completo
+        onPress={handleItemPress} // Vai para detalhes
+        onPlayPress={handlePlayPress} // Reproduz diretamente
       />
     );
   };
@@ -236,13 +232,9 @@ const CategoryScreen: React.FC = () => {
     
     return (
       <SeriesListItem
-        title={seriesItem.name}
-        plot={seriesItem.plot}
-        genre={seriesItem.genre}
-        rating={seriesItem.rating}
-        releaseDate={seriesItem.releaseDate}
-        imageUrl={seriesItem.cover}
-        onPress={() => handleItemPress(seriesItem)}
+        series={seriesItem} // Passa o objeto completo
+        onPress={handleItemPress} // Vai para detalhes
+        onWatchPress={handleWatchPress} // Ver episódios
       />
     );
   };

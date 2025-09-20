@@ -8,31 +8,42 @@ import {
   Dimensions,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import { VODStream } from '../../types';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 60) / 2; // 2 cards per row with margins
 
 interface MovieCardProps {
-  title: string;
-  year?: string;
-  rating?: string;
-  genre?: string;
-  imageUrl?: string;
-  onPress: () => void;
+  movie: VODStream; // Agora recebe o objeto completo do filme
+  onPress: (movie: VODStream) => void; // Passa o objeto completo
+  onPlayPress?: (movie: VODStream) => void; // Função separada para play
   featured?: boolean;
 }
 
 const MovieCard: React.FC<MovieCardProps> = ({
-  title,
-  year,
-  rating,
-  genre,
-  imageUrl,
+  movie,
   onPress,
+  onPlayPress,
   featured = false,
 }) => {
   const cardWidth = featured ? width - 40 : CARD_WIDTH;
   const cardHeight = featured ? 200 : 280;
+
+  const getYear = () => {
+    if (!movie.added) return null;
+    try {
+      return new Date(parseInt(movie.added) * 1000).getFullYear().toString();
+    } catch {
+      return null;
+    }
+  };
+
+  const handlePlayPress = (e: any) => {
+    e.stopPropagation(); // Previne que o onPress do card seja chamado
+    if (onPlayPress) {
+      onPlayPress(movie);
+    }
+  };
 
   return (
     <TouchableOpacity
@@ -41,13 +52,13 @@ const MovieCard: React.FC<MovieCardProps> = ({
         { width: cardWidth, height: cardHeight },
         featured && styles.featuredContainer,
       ]}
-      onPress={onPress}
+      onPress={() => onPress(movie)}
       activeOpacity={0.9}
     >
       <View style={styles.imageContainer}>
-        {imageUrl ? (
+        {movie.stream_icon ? (
           <Image
-            source={{ uri: imageUrl }}
+            source={{ uri: movie.stream_icon }}
             style={styles.image}
             resizeMode="cover"
           />
@@ -64,32 +75,27 @@ const MovieCard: React.FC<MovieCardProps> = ({
         />
         
         {/* Rating badge */}
-        {rating && (
+        {movie.rating && (
           <View style={styles.ratingBadge}>
-            <Text style={styles.ratingText}>★ {rating}</Text>
+            <Text style={styles.ratingText}>★ {movie.rating}</Text>
           </View>
         )}
 
-        {/* Content container - apenas para os botões featured */}
+        {/* Content container - apenas para os cartões featured */}
         {featured && (
           <View style={styles.contentContainer}>
             <View style={styles.metaContainer}>
-              {year && (
-                <Text style={styles.metaText}>{year}</Text>
-              )}
-              {genre && year && (
-                <Text style={styles.metaSeparator}>•</Text>
-              )}
-              {genre && (
-                <Text style={styles.metaText} numberOfLines={1}>
-                  {genre}
-                </Text>
+              {getYear() && (
+                <Text style={styles.metaText}>{getYear()}</Text>
               )}
             </View>
             
-            <View style={styles.playButton}>
+            <TouchableOpacity 
+              style={styles.playButton}
+              onPress={handlePlayPress}
+            >
               <Text style={styles.playButtonText}>▶ Assistir</Text>
-            </View>
+            </TouchableOpacity>
           </View>
         )}
       </View>
@@ -172,11 +178,6 @@ const styles = StyleSheet.create({
     color: '#ccc',
     fontSize: 12,
     flex: 1,
-  },
-  metaSeparator: {
-    color: '#666',
-    fontSize: 12,
-    marginHorizontal: 6,
   },
   playButton: {
     backgroundColor: '#007AFF',

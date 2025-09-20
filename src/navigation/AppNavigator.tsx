@@ -1,4 +1,4 @@
-// src/navigation/AppNavigator.tsx - VERSÃO ATUALIZADA
+// src/navigation/AppNavigator.tsx - VERSÃO ATUALIZADA COM TELAS DE DETALHES
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -16,6 +16,8 @@ import PlayerScreen from '../screens/player/PlayerScreen';
 import SearchScreen from '../screens/main/SearchScreen';
 import SettingsScreen from '../screens/settings/SettingsScreen';
 import UserListScreen from '../screens/settings/UserListScreen';
+import MovieDetailsScreen from '../screens/details/MovieDetailsScreen';
+import SeriesDetailsScreen from '../screens/details/SeriesDetailsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -110,6 +112,25 @@ const AppNavigator = () => {
         <Stack.Screen name="Category" component={CategoryScreen} />
         <Stack.Screen name="Settings" component={SettingsScreen} />
         <Stack.Screen name="UserList" component={UserListScreen} />
+        
+        {/* Novas telas de detalhes */}
+        <Stack.Screen 
+          name="MovieDetails" 
+          component={MovieDetailsScreen}
+          options={{
+            gestureEnabled: true,
+            animation: 'slide_from_right',
+          }}
+        />
+        <Stack.Screen 
+          name="SeriesDetails" 
+          component={SeriesDetailsScreen}
+          options={{
+            gestureEnabled: true,
+            animation: 'slide_from_right',
+          }}
+        />
+        
         <Stack.Screen 
           name="Player" 
           component={PlayerScreen}

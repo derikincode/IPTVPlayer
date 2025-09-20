@@ -272,7 +272,14 @@ const MoviesScreen: React.FC = () => {
     setRefreshing(false);
   };
 
+  // NOVOS HANDLERS ATUALIZADOS
   const handleMoviePress = (movie: VODStream): void => {
+    // Navegar para a tela de detalhes
+    navigation.navigate('MovieDetails', { movie });
+  };
+
+  const handleMoviePlay = (movie: VODStream): void => {
+    // Reproduzir diretamente
     try {
       const url = XtreamAPI.getVODURL(movie.stream_id, movie.container_extension);
       navigation.navigate('Player', {
@@ -289,18 +296,8 @@ const MoviesScreen: React.FC = () => {
   };
 
   const handleMovieInfo = (movie: VODStream): void => {
-    const addedDate = movie.added 
-      ? new Date(parseInt(movie.added) * 1000).toLocaleDateString('pt-BR')
-      : 'N/A';
-
-    Alert.alert(
-      movie.name,
-      `⭐ Avaliação: ${movie.rating || 'N/A'}\n📅 Adicionado: ${addedDate}\n🎬 Formato: ${movie.container_extension || 'N/A'}`,
-      [
-        { text: 'Fechar', style: 'cancel' },
-        { text: 'Assistir', onPress: () => handleMoviePress(movie) },
-      ]
-    );
+    // Para o banner hero, vai para detalhes
+    navigation.navigate('MovieDetails', { movie });
   };
 
   const handleCategoryPress = (category: CategoryWithMovies): void => {
@@ -311,13 +308,12 @@ const MoviesScreen: React.FC = () => {
     });
   };
 
+  // RENDERIZADORES ATUALIZADOS
   const renderFeaturedMovie = ({ item }: { item: VODStream }) => (
     <MovieCard
-      title={item.name}
-      year={item.added ? new Date(parseInt(item.added) * 1000).getFullYear().toString() : undefined}
-      rating={item.rating}
-      imageUrl={item.stream_icon}
-      onPress={() => handleMoviePress(item)}
+      movie={item}
+      onPress={handleMoviePress} // Vai para detalhes
+      onPlayPress={handleMoviePlay} // Reproduz diretamente
       featured
     />
   );
@@ -325,11 +321,9 @@ const MoviesScreen: React.FC = () => {
   const renderMovieItem = ({ item }: { item: VODStream }) => (
     <View style={styles.movieCardContainer}>
       <MovieCard
-        title={item.name}
-        year={item.added ? new Date(parseInt(item.added) * 1000).getFullYear().toString() : undefined}
-        rating={item.rating}
-        imageUrl={item.stream_icon}
-        onPress={() => handleMoviePress(item)}
+        movie={item}
+        onPress={handleMoviePress} // Vai para detalhes
+        onPlayPress={handleMoviePlay} // Reproduz diretamente
       />
     </View>
   );
@@ -395,12 +389,12 @@ const MoviesScreen: React.FC = () => {
       }
       removeClippedSubviews={true}
     >
-      {/* Hero Banner */}
+      {/* Hero Banner - ATUALIZADO */}
       {heroMovies.length > 0 && (
         <HeroBanner
           movies={heroMovies}
-          onMoviePress={handleMoviePress}
-          onInfoPress={handleMovieInfo}
+          onMoviePress={handleMoviePress} // Vai para detalhes
+          onInfoPress={handleMovieInfo} // Vai para detalhes também
         />
       )}
 
