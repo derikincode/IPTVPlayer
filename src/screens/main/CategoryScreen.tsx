@@ -1,4 +1,4 @@
-// src/screens/CategoryScreen.tsx - COM ÍCONES REACT NATIVE
+// src/screens/CategoryScreen.tsx - COM LAYOUT MELHORADO PARA FILMES
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -13,6 +13,7 @@ import NetInfo from '@react-native-community/netinfo';
 import Icon from 'react-native-vector-icons/Ionicons';
 import XtreamAPI from '../../services/api/XtreamAPI';
 import ChannelItem from '../../components/cards/ChannelItem';
+import MovieListItem from '../../components/cards/MovieListItem';
 import SearchBar from '../../components/common/SearchBar';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import OfflineMessage from '../../components/common/OfflineMessage';
@@ -66,25 +67,22 @@ const CategoryScreen: React.FC = () => {
 
       switch (type) {
         case 'live':
-          // Se categoryId for 'all_channels' ou vazio, carregar todos os canais
           if (categoryId === 'all_channels' || !categoryId) {
-            data = await XtreamAPI.getLiveStreams(); // Sem categoryId para pegar todos
+            data = await XtreamAPI.getLiveStreams();
           } else {
             data = await XtreamAPI.getLiveStreams(categoryId);
           }
           break;
         case 'vod':
-          // Se categoryId for 'all_movies' ou vazio, carregar todos os filmes
           if (categoryId === 'all_movies' || !categoryId) {
-            data = await XtreamAPI.getVODStreams(); // Sem categoryId para pegar todos
+            data = await XtreamAPI.getVODStreams();
           } else {
             data = await XtreamAPI.getVODStreams(categoryId);
           }
           break;
         case 'series':
-          // Se categoryId for 'all_series' ou vazio, carregar todas as séries
           if (categoryId === 'all_series' || !categoryId) {
-            data = await XtreamAPI.getSeries(); // Sem categoryId para pegar todos
+            data = await XtreamAPI.getSeries();
           } else {
             data = await XtreamAPI.getSeries(categoryId);
           }
@@ -189,7 +187,29 @@ const CategoryScreen: React.FC = () => {
     );
   };
 
-  const renderItem = ({ item }: { item: any }) => {
+  const renderMovieItem = ({ item }: { item: any }) => {
+    const vodItem = item as VODStream;
+    const getYear = () => {
+      if (!vodItem.added) return undefined;
+      try {
+        return new Date(parseInt(vodItem.added) * 1000).getFullYear().toString();
+      } catch {
+        return undefined;
+      }
+    };
+
+    return (
+      <MovieListItem
+        title={vodItem.name}
+        year={getYear()}
+        rating={vodItem.rating}
+        imageUrl={vodItem.stream_icon}
+        onPress={() => handleItemPress(vodItem)}
+      />
+    );
+  };
+
+  const renderChannelItem = ({ item }: { item: any }) => {
     let title = '';
     let subtitle = '';
     let imageUrl = '';
@@ -203,11 +223,6 @@ const CategoryScreen: React.FC = () => {
       const stream = item as LiveStream;
       title = stream.name;
       subtitle = `Canal ${stream.num}`;
-      imageUrl = stream.stream_icon;
-    } else if (type === 'vod') {
-      const stream = item as VODStream;
-      title = stream.name;
-      subtitle = stream.rating ? `Rating: ${stream.rating}` : '';
       imageUrl = stream.stream_icon;
     } else if (type === 'series') {
       const serie = item as Series;
@@ -316,9 +331,15 @@ const CategoryScreen: React.FC = () => {
         <FlatList
           data={filteredItems}
           keyExtractor={getKeyExtractor}
-          renderItem={renderItem}
-          contentContainerStyle={styles.listContainer}
+          renderItem={type === 'vod' ? renderMovieItem : renderChannelItem}
+          numColumns={type === 'vod' ? 2 : 1}
+          key={type === 'vod' ? 'grid' : 'list'}
+          contentContainerStyle={type === 'vod' ? styles.movieGridContainer : styles.listContainer}
+          columnWrapperStyle={type === 'vod' ? styles.gridRow : undefined}
           showsVerticalScrollIndicator={false}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={10}
         />
       )}
     </View>
@@ -380,6 +401,14 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     padding: 20,
+  },
+  movieGridContainer: {
+    paddingTop: 20,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+  },
+  gridRow: {
+    justifyContent: 'space-between',
   },
   emptyContainer: {
     flex: 1,
