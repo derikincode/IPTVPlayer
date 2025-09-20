@@ -220,54 +220,6 @@ const SeriesDetailsScreen: React.FC = () => {
             </View>
           )}
 
-          {/* Series Details */}
-          <View style={styles.detailsSection}>
-            <Text style={styles.sectionTitle}>Detalhes</Text>
-            
-            {series.genre && (
-              <View style={styles.detailItem}>
-                <Text style={styles.detailLabel}>Gênero:</Text>
-                <Text style={styles.detailValue}>{series.genre}</Text>
-              </View>
-            )}
-            
-            <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>Data de Lançamento:</Text>
-              <Text style={styles.detailValue}>{getSeriesYear()}</Text>
-            </View>
-            
-            {series.episode_run_time && (
-              <View style={styles.detailItem}>
-                <Text style={styles.detailLabel}>Duração do Episódio:</Text>
-                <Text style={styles.detailValue}>{getRuntime()}</Text>
-              </View>
-            )}
-            
-            <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>ID da Série:</Text>
-              <Text style={styles.detailValue}>{series.series_id}</Text>
-            </View>
-            
-            {series.rating && (
-              <View style={styles.detailItem}>
-                <Text style={styles.detailLabel}>Avaliação:</Text>
-                <View style={styles.ratingDetail}>
-                  <Icon name="star" size={16} color="#FFD700" />
-                  <Text style={styles.detailValue}>{series.rating}/10</Text>
-                </View>
-              </View>
-            )}
-
-            {series.last_modified && (
-              <View style={styles.detailItem}>
-                <Text style={styles.detailLabel}>Última Atualização:</Text>
-                <Text style={styles.detailValue}>
-                  {new Date(series.last_modified).toLocaleDateString('pt-BR')}
-                </Text>
-              </View>
-            )}
-          </View>
-
           {/* Trailer Section */}
           {series.youtube_trailer && (
             <View style={styles.trailerSection}>
@@ -452,30 +404,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 15,
     lineHeight: 20,
-  },
-  detailsSection: {
-    marginBottom: 30,
-  },
-  detailItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
-  },
-  detailLabel: {
-    color: '#ccc',
-    fontSize: 14,
-  },
-  detailValue: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  ratingDetail: {
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   trailerSection: {
     marginBottom: 30,

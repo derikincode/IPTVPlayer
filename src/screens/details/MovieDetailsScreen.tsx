@@ -30,6 +30,11 @@ const MovieDetailsScreen: React.FC = () => {
   
   const [isFavorite, setIsFavorite] = useState(false);
 
+  // Debug: Vamos ver o que tem no objeto movie
+  useEffect(() => {
+    console.log('🎬 Movie Object:', JSON.stringify(movie, null, 2));
+  }, []);
+
   useEffect(() => {
     StatusBar.setHidden(true);
     checkFavoriteStatus();
@@ -61,7 +66,8 @@ const MovieDetailsScreen: React.FC = () => {
   const handleDownload = () => {
     Alert.alert(
       'Download',
-      'Funcionalidade de download será implementada em breve.'
+      'Funcionalidade de download será implementada em breve.',
+      [{ text: 'OK' }]
     );
   };
 
@@ -241,61 +247,6 @@ const MovieDetailsScreen: React.FC = () => {
               </Text>
             </View>
           </View>
-
-          {/* Movie Details */}
-          <View style={styles.detailsSection}>
-            <Text style={styles.sectionTitle}>Detalhes</Text>
-            
-            <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>Formato:</Text>
-              <Text style={styles.detailValue}>
-                {movie.container_extension?.toUpperCase() || 'N/A'}
-              </Text>
-            </View>
-            
-            <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>Adicionado em:</Text>
-              <Text style={styles.detailValue}>
-                {movie.added ? new Date(parseInt(movie.added) * 1000).toLocaleDateString('pt-BR') : 'N/A'}
-              </Text>
-            </View>
-            
-            <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>Avaliação:</Text>
-              <View style={styles.ratingDetail}>
-                <Icon name="star" size={14} color="#FFD700" />
-                <Text style={styles.detailValue}>{getMovieRating()}</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Technical Details */}
-          <View style={styles.technicalSection}>
-            <Text style={styles.sectionTitle}>Informações Técnicas</Text>
-            
-            <View style={styles.techGrid}>
-              <View style={styles.techItem}>
-                <Text style={styles.techLabel}>Formato</Text>
-                <Text style={styles.techValue}>
-                  {movie.container_extension?.toUpperCase() || 'N/A'}
-                </Text>
-              </View>
-              
-              <View style={styles.techItem}>
-                <Text style={styles.techLabel}>Tipo</Text>
-                <Text style={styles.techValue}>
-                  {movie.stream_type || 'VOD'}
-                </Text>
-              </View>
-              
-              <View style={styles.techItem}>
-                <Text style={styles.techLabel}>ID</Text>
-                <Text style={styles.techValue}>
-                  {movie.stream_id}
-                </Text>
-              </View>
-            </View>
-          </View>
         </View>
       </ScrollView>
     </View>
@@ -425,22 +376,6 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginBottom: 24,
   },
-  castSection: {
-    marginBottom: 30,
-  },
-  castItem: {
-    marginBottom: 12,
-  },
-  castLabel: {
-    color: '#999',
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  castValue: {
-    color: '#fff',
-    fontSize: 15,
-    lineHeight: 20,
-  },
   actionButtons: {
     marginBottom: 30,
   },
@@ -473,7 +408,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: 'center',
   },
-  detailsSection: {
+  castSection: {
     marginBottom: 30,
   },
   sectionTitle: {
@@ -482,52 +417,18 @@ const styles = StyleSheet.create({
     color: '#fff',
     marginBottom: 16,
   },
-  detailItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
-  },
-  detailLabel: {
-    color: '#ccc',
-    fontSize: 14,
-  },
-  detailValue: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  ratingDetail: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  technicalSection: {
-    marginBottom: 30,
-  },
-  techGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  techItem: {
-    width: '30%',
-    backgroundColor: '#2a2a2a',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
+  castItem: {
     marginBottom: 12,
   },
-  techLabel: {
+  castLabel: {
     color: '#999',
-    fontSize: 12,
+    fontSize: 14,
     marginBottom: 4,
   },
-  techValue: {
+  castValue: {
     color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    lineHeight: 20,
   },
 });
 
