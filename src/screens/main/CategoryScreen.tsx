@@ -1,4 +1,4 @@
-// src/screens/CategoryScreen.tsx - COM LAYOUT MELHORADO PARA FILMES
+// src/screens/CategoryScreen.tsx - COM LAYOUT MELHORADO PARA FILMES E SÉRIES
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -14,6 +14,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import XtreamAPI from '../../services/api/XtreamAPI';
 import ChannelItem from '../../components/cards/ChannelItem';
 import MovieListItem from '../../components/cards/MovieListItem';
+import SeriesListItem from '../../components/cards/SeriesListItem';
 import SearchBar from '../../components/common/SearchBar';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import OfflineMessage from '../../components/common/OfflineMessage';
@@ -120,7 +121,8 @@ const CategoryScreen: React.FC = () => {
       } else if (type === 'series') {
         const serie = item as Series;
         return serie.name.toLowerCase().includes(query) ||
-               (serie.genre && serie.genre.toLowerCase().includes(query));
+               (serie.genre && serie.genre.toLowerCase().includes(query)) ||
+               (serie.plot && serie.plot.toLowerCase().includes(query));
       }
       return false;
     });
@@ -156,8 +158,28 @@ const CategoryScreen: React.FC = () => {
       });
     } else if (type === 'series') {
       const serie = item as Series;
-      Alert.alert('Série', `${serie.name}\n\n${serie.plot}`);
+      const info = [
+        serie.plot && `📖 ${serie.plot}`,
+        serie.genre && `🎭 Gênero: ${serie.genre}`,
+        serie.releaseDate && `📅 Lançamento: ${serie.releaseDate}`,
+        serie.rating && `⭐ Avaliação: ${serie.rating}`,
+        serie.cast && `🎬 Elenco: ${serie.cast}`,
+        serie.director && `🎯 Direção: ${serie.director}`,
+      ].filter(Boolean).join('\n\n');
+
+      Alert.alert(
+        serie.name,
+        info || 'Informações não disponíveis',
+        [
+          { text: 'Fechar', style: 'cancel' },
+          { text: 'Ver Episódios', onPress: () => handleViewEpisodes(serie) },
+        ]
+      );
     }
+  };
+
+  const handleViewEpisodes = (serie: Series) => {
+    Alert.alert('Em Desenvolvimento', 'Funcionalidade de episódios será implementada em breve');
   };
 
   const toggleSearch = () => {
@@ -209,6 +231,22 @@ const CategoryScreen: React.FC = () => {
     );
   };
 
+  const renderSeriesItem = ({ item }: { item: any }) => {
+    const seriesItem = item as Series;
+    
+    return (
+      <SeriesListItem
+        title={seriesItem.name}
+        plot={seriesItem.plot}
+        genre={seriesItem.genre}
+        rating={seriesItem.rating}
+        releaseDate={seriesItem.releaseDate}
+        imageUrl={seriesItem.cover}
+        onPress={() => handleItemPress(seriesItem)}
+      />
+    );
+  };
+
   const renderChannelItem = ({ item }: { item: any }) => {
     let title = '';
     let subtitle = '';
@@ -224,11 +262,6 @@ const CategoryScreen: React.FC = () => {
       title = stream.name;
       subtitle = `Canal ${stream.num}`;
       imageUrl = stream.stream_icon;
-    } else if (type === 'series') {
-      const serie = item as Series;
-      title = serie.name;
-      subtitle = serie.genre;
-      imageUrl = serie.cover;
     }
 
     return (
@@ -263,6 +296,29 @@ const CategoryScreen: React.FC = () => {
     
     return `${total} ${type === 'live' || type === 'm3u' ? 'canais' : 
             type === 'vod' ? 'filmes' : 'séries'}`;
+  };
+
+  const getRenderItem = () => {
+    switch (type) {
+      case 'vod':
+        return renderMovieItem;
+      case 'series':
+        return renderSeriesItem;
+      default:
+        return renderChannelItem;
+    }
+  };
+
+  const getNumColumns = () => {
+    return (type === 'vod' || type === 'series') ? 2 : 1;
+  };
+
+  const getContainerStyle = () => {
+    return (type === 'vod' || type === 'series') ? styles.gridContainer : styles.listContainer;
+  };
+
+  const getColumnWrapperStyle = () => {
+    return (type === 'vod' || type === 'series') ? styles.gridRow : undefined;
   };
 
   if (loading) {
@@ -331,11 +387,11 @@ const CategoryScreen: React.FC = () => {
         <FlatList
           data={filteredItems}
           keyExtractor={getKeyExtractor}
-          renderItem={type === 'vod' ? renderMovieItem : renderChannelItem}
-          numColumns={type === 'vod' ? 2 : 1}
-          key={type === 'vod' ? 'grid' : 'list'}
-          contentContainerStyle={type === 'vod' ? styles.movieGridContainer : styles.listContainer}
-          columnWrapperStyle={type === 'vod' ? styles.gridRow : undefined}
+          renderItem={getRenderItem()}
+          numColumns={getNumColumns()}
+          key={`${type}_${getNumColumns()}`} // Force re-render when changing layout
+          contentContainerStyle={getContainerStyle()}
+          columnWrapperStyle={getColumnWrapperStyle()}
           showsVerticalScrollIndicator={false}
           removeClippedSubviews={true}
           maxToRenderPerBatch={10}
@@ -402,7 +458,7 @@ const styles = StyleSheet.create({
   listContainer: {
     padding: 20,
   },
-  movieGridContainer: {
+  gridContainer: {
     paddingTop: 20,
     paddingBottom: 20,
     paddingHorizontal: 20,
