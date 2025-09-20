@@ -1,4 +1,4 @@
-// src/types/index.ts - VERSÃO ATUALIZADA
+// src/types/index.ts - VERSÃO ATUALIZADA COM SINOPSE
 export interface XtreamCredentials {
   host: string;
   username: string;
@@ -77,6 +77,11 @@ export interface VODStream {
   container_extension: string;
   custom_sid: string;
   direct_source: string;
+  // ✅ PROPRIEDADES ADICIONADAS PARA INFORMAÇÕES COMPLETAS
+  plot?: string;     // Sinopse/Plot do filme (opcional)
+  genre?: string;    // Gênero do filme (opcional)
+  cast?: string;     // Elenco do filme (opcional)
+  director?: string; // Diretor do filme (opcional)
 }
 
 export interface Series {

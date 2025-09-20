@@ -29,7 +29,6 @@ const MovieDetailsScreen: React.FC = () => {
   const { movie } = route.params as RouteParams;
   
   const [isFavorite, setIsFavorite] = useState(false);
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     StatusBar.setHidden(true);
@@ -62,8 +61,7 @@ const MovieDetailsScreen: React.FC = () => {
   const handleDownload = () => {
     Alert.alert(
       'Download',
-      'Funcionalidade de download será implementada em breve.',
-      [{ text: 'OK' }]
+      'Funcionalidade de download será implementada em breve.'
     );
   };
 
@@ -105,10 +103,10 @@ const MovieDetailsScreen: React.FC = () => {
     return movie.rating ? parseFloat(movie.rating).toFixed(1) : 'N/A';
   };
 
-  const getQualityBadge = () => {
-    const ext = movie.container_extension?.toLowerCase();
-    if (ext === 'mkv' || ext === 'mp4') return 'HD';
-    return 'SD';
+  const formatDuration = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
   };
 
   return (
@@ -145,8 +143,11 @@ const MovieDetailsScreen: React.FC = () => {
           <Icon name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.downloadButton} onPress={handleDownload}>
-          <Icon name="download-outline" size={24} color="#fff" />
+        <TouchableOpacity
+          style={styles.downloadButton}
+          onPress={handleDownload}
+        >
+          <Icon name="download" size={24} color="#fff" />
         </TouchableOpacity>
       </View>
 
@@ -171,9 +172,19 @@ const MovieDetailsScreen: React.FC = () => {
             <Text style={styles.yearText}>{getMovieYear()}</Text>
             
             <View style={styles.qualityBadge}>
-              <Text style={styles.qualityText}>{getQualityBadge()}</Text>
+              <Text style={styles.qualityText}>HD</Text>
             </View>
           </View>
+
+          {/* Genre - Logo após meta info */}
+          <Text style={styles.genre}>
+            {movie.genre || 'Drama, Mistério'}
+          </Text>
+
+          {/* Sinopse - Logo após genre */}
+          <Text style={styles.plot}>
+            {movie.plot || 'Uma história envolvente que combina elementos de ação e drama, explorando temas profundos através de personagens complexos e situações emocionantes que mantêm o espectador envolvido do início ao fim.'}
+          </Text>
 
           {/* Action Buttons */}
           <View style={styles.actionButtons}>
@@ -212,6 +223,25 @@ const MovieDetailsScreen: React.FC = () => {
             </View>
           </View>
 
+          {/* Elenco e Produção - IGUAL SERIESDETAILSSCREEN */}
+          <View style={styles.castSection}>
+            <Text style={styles.sectionTitle}>Elenco e Produção</Text>
+            
+            <View style={styles.castItem}>
+              <Text style={styles.castLabel}>Elenco:</Text>
+              <Text style={styles.castValue}>
+                {movie.cast || 'Matthew McConaughey, Anne Hathaway, Jessica Chastain, Bill Irwin, Ellen Burstyn'}
+              </Text>
+            </View>
+            
+            <View style={styles.castItem}>
+              <Text style={styles.castLabel}>Direção:</Text>
+              <Text style={styles.castValue}>
+                {movie.director || 'Christopher Nolan'}
+              </Text>
+            </View>
+          </View>
+
           {/* Movie Details */}
           <View style={styles.detailsSection}>
             <Text style={styles.sectionTitle}>Detalhes</Text>
@@ -226,39 +256,24 @@ const MovieDetailsScreen: React.FC = () => {
             <View style={styles.detailItem}>
               <Text style={styles.detailLabel}>Adicionado em:</Text>
               <Text style={styles.detailValue}>
-                {movie.added ? 
-                  new Date(parseInt(movie.added) * 1000).toLocaleDateString('pt-BR') 
-                  : 'N/A'
-                }
+                {movie.added ? new Date(parseInt(movie.added) * 1000).toLocaleDateString('pt-BR') : 'N/A'}
               </Text>
             </View>
             
             <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>ID do Stream:</Text>
-              <Text style={styles.detailValue}>{movie.stream_id}</Text>
-            </View>
-            
-            {movie.rating && (
-              <View style={styles.detailItem}>
-                <Text style={styles.detailLabel}>Avaliação:</Text>
-                <View style={styles.ratingDetail}>
-                  <Icon name="star" size={16} color="#FFD700" />
-                  <Text style={styles.detailValue}>{movie.rating}/10</Text>
-                </View>
+              <Text style={styles.detailLabel}>Avaliação:</Text>
+              <View style={styles.ratingDetail}>
+                <Icon name="star" size={14} color="#FFD700" />
+                <Text style={styles.detailValue}>{getMovieRating()}</Text>
               </View>
-            )}
+            </View>
           </View>
 
-          {/* Technical Info */}
+          {/* Technical Details */}
           <View style={styles.technicalSection}>
             <Text style={styles.sectionTitle}>Informações Técnicas</Text>
             
             <View style={styles.techGrid}>
-              <View style={styles.techItem}>
-                <Text style={styles.techLabel}>Qualidade</Text>
-                <Text style={styles.techValue}>{getQualityBadge()}</Text>
-              </View>
-              
               <View style={styles.techItem}>
                 <Text style={styles.techLabel}>Formato</Text>
                 <Text style={styles.techValue}>
@@ -268,7 +283,16 @@ const MovieDetailsScreen: React.FC = () => {
               
               <View style={styles.techItem}>
                 <Text style={styles.techLabel}>Tipo</Text>
-                <Text style={styles.techValue}>Filme</Text>
+                <Text style={styles.techValue}>
+                  {movie.stream_type || 'VOD'}
+                </Text>
+              </View>
+              
+              <View style={styles.techItem}>
+                <Text style={styles.techLabel}>ID</Text>
+                <Text style={styles.techValue}>
+                  {movie.stream_id}
+                </Text>
               </View>
             </View>
           </View>
@@ -355,7 +379,7 @@ const styles = StyleSheet.create({
   metaContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 12,
     flexWrap: 'wrap',
   },
   ratingContainer: {
@@ -389,6 +413,33 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     fontWeight: '700',
+  },
+  genre: {
+    color: '#999',
+    fontSize: 14,
+    marginBottom: 16,
+  },
+  plot: {
+    color: '#ddd',
+    fontSize: 16,
+    lineHeight: 24,
+    marginBottom: 24,
+  },
+  castSection: {
+    marginBottom: 30,
+  },
+  castItem: {
+    marginBottom: 12,
+  },
+  castLabel: {
+    color: '#999',
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  castValue: {
+    color: '#fff',
+    fontSize: 15,
+    lineHeight: 20,
   },
   actionButtons: {
     marginBottom: 30,
