@@ -14,9 +14,9 @@ const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 60) / 2; // 2 cards per row with margins
 
 interface MovieCardProps {
-  movie: VODStream; // Agora recebe o objeto completo do filme
-  onPress: (movie: VODStream) => void; // Passa o objeto completo
-  onPlayPress?: (movie: VODStream) => void; // Função separada para play
+  movie: VODStream;
+  onPress: (movie: VODStream) => void;
+  onPlayPress?: (movie: VODStream) => void;
   featured?: boolean;
 }
 
@@ -39,7 +39,7 @@ const MovieCard: React.FC<MovieCardProps> = ({
   };
 
   const handlePlayPress = (e: any) => {
-    e.stopPropagation(); // Previne que o onPress do card seja chamado
+    e.stopPropagation();
     if (onPlayPress) {
       onPlayPress(movie);
     }
@@ -60,7 +60,7 @@ const MovieCard: React.FC<MovieCardProps> = ({
           <Image
             source={{ uri: movie.stream_icon }}
             style={styles.image}
-            resizeMode="cover"
+            resizeMode="stretch" // Mudança aqui: stretch para preencher completamente
           />
         ) : (
           <View style={styles.placeholderImage}>
@@ -68,13 +68,14 @@ const MovieCard: React.FC<MovieCardProps> = ({
           </View>
         )}
         
-        {/* Gradient overlay - mais sutil */}
+        {/* Gradient overlay mais sutil */}
         <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.6)']}
+          colors={['transparent', 'rgba(0,0,0,0.4)']}
           style={styles.gradientOverlay}
         />
 
-        {/* Content container - apenas para os cartões featured */}
+
+        {/* Content container apenas para featured */}
         {featured && (
           <View style={styles.contentContainer}>
             <View style={styles.metaContainer}>
@@ -87,51 +88,56 @@ const MovieCard: React.FC<MovieCardProps> = ({
               style={styles.playButton}
               onPress={handlePlayPress}
             >
-              <Text style={styles.playButtonText}>▶ Assistir</Text>
+              <Text style={styles.playIcon}>▶</Text>
+              <Text style={styles.playText}>Assistir</Text>
             </TouchableOpacity>
           </View>
         )}
       </View>
+
+
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#2a2a2a',
+    marginBottom: 16,
     borderRadius: 12,
     overflow: 'hidden',
-    marginBottom: 16,
-    elevation: 5,
+    backgroundColor: '#1a1a1a',
+    elevation: 4,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 2,
     },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
   featuredContainer: {
     marginHorizontal: 20,
-    marginBottom: 24,
   },
   imageContainer: {
     flex: 1,
     position: 'relative',
+    backgroundColor: '#2a2a2a',
   },
   image: {
     width: '100%',
     height: '100%',
+    // resizeMode stretch garante que a imagem preencha completamente o container
+    // sem cortes, mesmo que isso altere o aspect ratio
   },
   placeholderImage: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#3a3a3a',
+    backgroundColor: '#2a2a2a',
     justifyContent: 'center',
     alignItems: 'center',
   },
   placeholderIcon: {
-    fontSize: 32,
+    fontSize: 40,
     opacity: 0.5,
   },
   gradientOverlay: {
@@ -139,37 +145,46 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: '40%',
+    height: '50%',
   },
+
   contentContainer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 12,
+    padding: 16,
   },
   metaContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   metaText: {
     color: '#ccc',
-    fontSize: 12,
-    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
   },
   playButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#007AFF',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
     alignSelf: 'flex-start',
   },
-  playButtonText: {
+  playIcon: {
     color: '#fff',
     fontSize: 12,
+    marginRight: 6,
+  },
+  playText: {
+    color: '#fff',
+    fontSize: 14,
     fontWeight: '600',
   },
+
 });
 
 export default MovieCard;

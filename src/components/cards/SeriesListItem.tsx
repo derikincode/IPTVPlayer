@@ -1,4 +1,3 @@
-// src/components/cards/SeriesListItem.tsx - ATUALIZADO
 import React from 'react';
 import {
   TouchableOpacity,
@@ -15,9 +14,9 @@ const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 60) / 2; // 2 cards per row with margins
 
 interface SeriesListItemProps {
-  series: Series; // Agora recebe o objeto completo da série
-  onPress: (series: Series) => void; // Passa o objeto completo
-  onWatchPress?: (series: Series) => void; // Função separada para assistir
+  series: Series;
+  onPress: (series: Series) => void;
+  onWatchPress?: (series: Series) => void;
   featured?: boolean;
 }
 
@@ -40,7 +39,7 @@ const SeriesListItem: React.FC<SeriesListItemProps> = ({
   };
 
   const handleWatchPress = (e: any) => {
-    e.stopPropagation(); // Previne que o onPress do card seja chamado
+    e.stopPropagation();
     if (onWatchPress) {
       onWatchPress(series);
     }
@@ -53,7 +52,7 @@ const SeriesListItem: React.FC<SeriesListItemProps> = ({
         { width: cardWidth, height: cardHeight },
         featured && styles.featuredContainer,
       ]}
-      onPress={() => onPress(series)} // Passa o objeto completo da série
+      onPress={() => onPress(series)}
       activeOpacity={0.9}
     >
       <View style={styles.imageContainer}>
@@ -61,7 +60,7 @@ const SeriesListItem: React.FC<SeriesListItemProps> = ({
           <Image
             source={{ uri: series.cover }}
             style={styles.image}
-            resizeMode="cover"
+            resizeMode="stretch" // Mudança aqui: stretch para preencher completamente
           />
         ) : (
           <View style={styles.placeholderImage}>
@@ -69,18 +68,13 @@ const SeriesListItem: React.FC<SeriesListItemProps> = ({
           </View>
         )}
         
-        {/* Gradient overlay - mais sutil */}
+        {/* Gradient overlay mais sutil */}
         <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.6)']}
+          colors={['transparent', 'rgba(0,0,0,0.4)']}
           style={styles.gradientOverlay}
         />
 
-        {/* Series badge */}
-        <View style={styles.typeBadge}>
-          <Text style={styles.typeText}>SÉRIE</Text>
-        </View>
-
-        {/* Content container - apenas para os cartões featured */}
+        {/* Content container apenas para featured */}
         {featured && (
           <View style={styles.contentContainer}>
             <View style={styles.metaContainer}>
@@ -101,7 +95,8 @@ const SeriesListItem: React.FC<SeriesListItemProps> = ({
               style={styles.watchButton}
               onPress={handleWatchPress}
             >
-              <Text style={styles.watchButtonText}>▶ Ver Episódios</Text>
+              <Text style={styles.watchIcon}>▶</Text>
+              <Text style={styles.watchButtonText}>Ver Episódios</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -112,18 +107,18 @@ const SeriesListItem: React.FC<SeriesListItemProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#2a2a2a',
+    backgroundColor: '#1a1a1a',
     borderRadius: 12,
     overflow: 'hidden',
     marginBottom: 16,
-    elevation: 5,
+    elevation: 4,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 2,
     },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
   featuredContainer: {
     marginHorizontal: 20,
@@ -132,20 +127,23 @@ const styles = StyleSheet.create({
   imageContainer: {
     flex: 1,
     position: 'relative',
+    backgroundColor: '#2a2a2a',
   },
   image: {
     width: '100%',
     height: '100%',
+    // resizeMode stretch garante que a imagem preencha completamente o container
+    // sem cortes, mesmo que isso altere o aspect ratio
   },
   placeholderImage: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#3a3a3a',
+    backgroundColor: '#2a2a2a',
     justifyContent: 'center',
     alignItems: 'center',
   },
   placeholderIcon: {
-    fontSize: 32,
+    fontSize: 40,
     opacity: 0.5,
   },
   gradientOverlay: {
@@ -153,70 +151,49 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: '40%',
-  },
-  typeBadge: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-    shadowColor: '#007AFF',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.4,
-    shadowRadius: 2,
-    elevation: 3,
-  },
-  typeText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '700',
+    height: '50%',
   },
   contentContainer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 15,
+    padding: 16,
   },
   metaContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
+    flexWrap: 'wrap',
   },
   metaText: {
     color: '#ccc',
-    fontSize: 12,
+    fontSize: 14,
+    fontWeight: '500',
   },
   metaSeparator: {
-    color: '#666',
-    fontSize: 12,
-    marginHorizontal: 6,
+    color: '#888',
+    fontSize: 14,
+    marginHorizontal: 8,
   },
   watchButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#007AFF',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 25,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
     alignSelf: 'flex-start',
-    shadowColor: '#007AFF',
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
-    shadowOpacity: 0.4,
-    shadowRadius: 4,
-    elevation: 4,
+  },
+  watchIcon: {
+    color: '#fff',
+    fontSize: 12,
+    marginRight: 6,
   },
   watchButtonText: {
     color: '#fff',
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '600',
   },
 });
 

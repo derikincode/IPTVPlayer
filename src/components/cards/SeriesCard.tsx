@@ -14,9 +14,9 @@ const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 60) / 2;
 
 interface SeriesCardProps {
-  series: Series; // Agora recebe o objeto completo da série
-  onPress: (series: Series) => void; // Passa o objeto completo
-  onWatchPress?: (series: Series) => void; // Função separada para assistir
+  series: Series;
+  onPress: (series: Series) => void;
+  onWatchPress?: (series: Series) => void;
   featured?: boolean;
 }
 
@@ -39,7 +39,7 @@ const SeriesCard: React.FC<SeriesCardProps> = ({
   };
 
   const handleWatchPress = (e: any) => {
-    e.stopPropagation(); // Previne que o onPress do card seja chamado
+    e.stopPropagation();
     if (onWatchPress) {
       onWatchPress(series);
     }
@@ -60,7 +60,7 @@ const SeriesCard: React.FC<SeriesCardProps> = ({
           <Image
             source={{ uri: series.cover }}
             style={styles.image}
-            resizeMode="cover"
+            resizeMode="stretch" // Mudança aqui: stretch para preencher completamente
           />
         ) : (
           <View style={styles.placeholderImage}>
@@ -68,18 +68,15 @@ const SeriesCard: React.FC<SeriesCardProps> = ({
           </View>
         )}
         
-        {/* Gradient overlay - mais sutil */}
+        {/* Gradient overlay mais sutil */}
         <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.6)']}
+          colors={['transparent', 'rgba(0,0,0,0.4)']}
           style={styles.gradientOverlay}
         />
 
-        {/* Episode count badge */}
-        <View style={styles.typeBadge}>
-          <Text style={styles.typeText}>SÉRIE</Text>
-        </View>
 
-        {/* Content container - apenas para os cartões featured */}
+
+        {/* Content container apenas para featured */}
         {featured && (
           <View style={styles.contentContainer}>
             <View style={styles.metaContainer}>
@@ -90,9 +87,7 @@ const SeriesCard: React.FC<SeriesCardProps> = ({
                 <Text style={styles.metaSeparator}>•</Text>
               )}
               {series.genre && (
-                <Text style={styles.metaText} numberOfLines={1}>
-                  {series.genre}
-                </Text>
+                <Text style={styles.metaText}>{series.genre}</Text>
               )}
             </View>
             
@@ -100,51 +95,56 @@ const SeriesCard: React.FC<SeriesCardProps> = ({
               style={styles.watchButton}
               onPress={handleWatchPress}
             >
-              <Text style={styles.watchButtonText}>▶ Ver Episódios</Text>
+              <Text style={styles.watchIcon}>▶</Text>
+              <Text style={styles.watchText}>Assistir</Text>
             </TouchableOpacity>
           </View>
         )}
       </View>
+
+
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#2a2a2a',
+    marginBottom: 16,
     borderRadius: 12,
     overflow: 'hidden',
-    marginBottom: 16,
-    elevation: 5,
+    backgroundColor: '#1a1a1a',
+    elevation: 4,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 2,
     },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
   featuredContainer: {
     marginHorizontal: 20,
-    marginBottom: 24,
   },
   imageContainer: {
     flex: 1,
     position: 'relative',
+    backgroundColor: '#2a2a2a',
   },
   image: {
     width: '100%',
     height: '100%',
+    // resizeMode stretch garante que a imagem preencha completamente o container
+    // sem cortes, mesmo que isso altere o aspect ratio
   },
   placeholderImage: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#3a3a3a',
+    backgroundColor: '#2a2a2a',
     justifyContent: 'center',
     alignItems: 'center',
   },
   placeholderIcon: {
-    fontSize: 32,
+    fontSize: 40,
     opacity: 0.5,
   },
   gradientOverlay: {
@@ -152,56 +152,53 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: '40%',
+    height: '50%',
   },
-  typeBadge: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  typeText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: '700',
-  },
+
+
   contentContainer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 12,
+    padding: 16,
   },
   metaContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 12,
+    flexWrap: 'wrap',
   },
   metaText: {
     color: '#ccc',
-    fontSize: 12,
-    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
   },
   metaSeparator: {
-    color: '#666',
-    fontSize: 12,
-    marginHorizontal: 6,
+    color: '#888',
+    fontSize: 14,
+    marginHorizontal: 8,
   },
   watchButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#007AFF',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
     alignSelf: 'flex-start',
   },
-  watchButtonText: {
+  watchIcon: {
     color: '#fff',
     fontSize: 12,
+    marginRight: 6,
+  },
+  watchText: {
+    color: '#fff',
+    fontSize: 14,
     fontWeight: '600',
   },
+
 });
 
 export default SeriesCard;
