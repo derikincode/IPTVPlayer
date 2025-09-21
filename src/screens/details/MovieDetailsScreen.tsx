@@ -29,6 +29,7 @@ const MovieDetailsScreen: React.FC = () => {
   const { movie } = route.params as RouteParams;
   
   const [isFavorite, setIsFavorite] = useState(false);
+  const [imageHeight, setImageHeight] = useState<number>(500);
 
   useEffect(() => {
     console.log('🎬 Movie Object:', JSON.stringify(movie, null, 2));
@@ -44,8 +45,13 @@ const MovieDetailsScreen: React.FC = () => {
   }, []);
 
   const checkFavoriteStatus = async () => {
-    const favorite = await StorageService.isFavorite(movie.stream_id.toString(), 'vod');
-    setIsFavorite(favorite);
+    try {
+      const favorite = await StorageService.isFavorite(movie.stream_id.toString(), 'vod');
+      setIsFavorite(favorite);
+    } catch (error) {
+      console.log('Erro ao verificar favorito:', error);
+      setIsFavorite(false);
+    }
   };
 
   const handlePlay = () => {
@@ -70,7 +76,7 @@ const MovieDetailsScreen: React.FC = () => {
     );
   };
 
-  const toggleFavorite = async () => {
+  const handleFavoriteToggle = async () => {
     try {
       if (isFavorite) {
         await StorageService.removeFromFavorites(movie.stream_id.toString(), 'vod');
@@ -114,11 +120,33 @@ const MovieDetailsScreen: React.FC = () => {
     return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
   };
 
+  const handleImageLoad = (event: any) => {
+    const { width: imgWidth, height: imgHeight } = event.nativeEvent.source;
+    console.log('Image dimensions:', imgWidth, 'x', imgHeight);
+    
+    // Calcula altura ideal baseada na proporção da imagem
+    const aspectRatio = imgWidth / imgHeight;
+    let optimalHeight = 500; // Altura padrão
+    
+    // Para imagens muito largas (paisagem), limitamos a altura
+    if (aspectRatio > 1.5) {
+      optimalHeight = Math.min(400, width / aspectRatio);
+    }
+    // Para imagens muito altas (retrato), limitamos a altura máxima
+    else if (aspectRatio < 0.6) {
+      optimalHeight = Math.min(600, width / aspectRatio);
+    }
+    // Para proporções normais de poster (entre 0.6 e 1.5)
+    else {
+      optimalHeight = width / aspectRatio;
+    }
+    
+    setImageHeight(optimalHeight);
+  };
+
   return (
     <View style={styles.container}>
-      <StatusBar hidden />
-      
-      {/* Header com botões sobrepostos à imagem */}
+      {/* Header sobreposto apenas na imagem */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -126,32 +154,29 @@ const MovieDetailsScreen: React.FC = () => {
         >
           <Icon name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
-        
+
         <TouchableOpacity
           style={styles.downloadButton}
           onPress={handleDownload}
         >
-          <Icon name="download" size={24} color="#fff" />
+          <Icon name="download-outline" size={24} color="#fff" />
         </TouchableOpacity>
       </View>
 
+      {/* Container scrollável */}
       <ScrollView 
         style={styles.scrollContainer}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Imagem do filme - TOTALMENTE limpa, sem sobreposições */}
-        <View style={styles.imageContainer}>
+        {/* Imagem do filme - AUTO-AJUSTADA DINAMICAMENTE */}
+        <View style={[styles.imageContainer, { height: imageHeight }]}>
           {movie.stream_icon ? (
             <Image
               source={{ uri: movie.stream_icon }}
-              style={styles.movieImage}
-              resizeMode="cover"
-              onLoad={(event) => {
-                // Captura as dimensões originais da imagem para calcular aspect ratio
-                const { width: imgWidth, height: imgHeight } = event.nativeEvent.source;
-                console.log('Image dimensions:', imgWidth, 'x', imgHeight);
-              }}
+              style={[styles.movieImage, { height: imageHeight }]}
+              resizeMode="contain"
+              onLoad={handleImageLoad}
             />
           ) : (
             <View style={styles.placeholderImage}>
@@ -174,8 +199,6 @@ const MovieDetailsScreen: React.FC = () => {
               <Icon name="star" size={14} color="#000" />
               <Text style={styles.ratingText}>{getMovieRating()}</Text>
             </View>
-            
-            {/* Duração - removido pois não existe na interface */}
             
             {/* Badge de qualidade */}
             <View style={styles.qualityBadge}>
@@ -210,7 +233,7 @@ const MovieDetailsScreen: React.FC = () => {
           <View style={styles.secondaryActions}>
             <TouchableOpacity
               style={styles.actionButton}
-              onPress={toggleFavorite}
+              onPress={handleFavoriteToggle}
             >
               <Icon 
                 name={isFavorite ? "heart" : "heart-outline"} 
@@ -316,16 +339,19 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 50,
   },
-  // Imagem do filme - SEM conteúdo sobreposto
+  // Imagem do filme - AUTO-AJUSTADA DINAMICAMENTE
   imageContainer: {
     width: width,
     backgroundColor: '#1a1a1a',
     overflow: 'hidden',
-    // Remove altura fixa para que se adapte ao conteúdo
+    justifyContent: 'center',
+    alignItems: 'center',
+    // Altura será definida dinamicamente via props
   },
   movieImage: {
-    width: width, // Largura total da tela
-    aspectRatio: 3/4, // Proporção levemente menor que 2/3
+    width: width,
+    resizeMode: 'contain', // Garante que toda imagem seja visível
+    // Altura será definida dinamicamente via props
   },
   placeholderImage: {
     width: '100%',
