@@ -30,7 +30,6 @@ const MovieDetailsScreen: React.FC = () => {
   
   const [isFavorite, setIsFavorite] = useState(false);
 
-  // Debug: Vamos ver o que tem no objeto movie
   useEffect(() => {
     console.log('🎬 Movie Object:', JSON.stringify(movie, null, 2));
   }, []);
@@ -119,28 +118,7 @@ const MovieDetailsScreen: React.FC = () => {
     <View style={styles.container}>
       <StatusBar hidden />
       
-      {/* Background Image */}
-      <View style={styles.imageContainer}>
-        {movie.stream_icon ? (
-          <Image
-            source={{ uri: movie.stream_icon }}
-            style={styles.backgroundImage}
-            resizeMode="cover"
-          />
-        ) : (
-          <View style={styles.placeholderImage}>
-            <Icon name="film" size={80} color="#666" />
-          </View>
-        )}
-        
-        {/* Gradient Overlay */}
-        <LinearGradient
-          colors={['transparent', 'rgba(26,26,26,0.7)', '#1a1a1a']}
-          style={styles.gradientOverlay}
-        />
-      </View>
-
-      {/* Header */}
+      {/* Header com botões sobrepostos à imagem */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -157,95 +135,139 @@ const MovieDetailsScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Content */}
       <ScrollView 
-        style={styles.content}
+        style={styles.scrollContainer}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Movie Info */}
+        {/* Imagem do filme - TOTALMENTE limpa, sem sobreposições */}
+        <View style={styles.imageContainer}>
+          {movie.stream_icon ? (
+            <Image
+              source={{ uri: movie.stream_icon }}
+              style={styles.movieImage}
+              resizeMode="cover"
+              onLoad={(event) => {
+                // Captura as dimensões originais da imagem para calcular aspect ratio
+                const { width: imgWidth, height: imgHeight } = event.nativeEvent.source;
+                console.log('Image dimensions:', imgWidth, 'x', imgHeight);
+              }}
+            />
+          ) : (
+            <View style={styles.placeholderImage}>
+              <Icon name="film" size={80} color="#666" />
+            </View>
+          )}
+        </View>
+
+        {/* Informações do filme - SEPARADAS da imagem */}
         <View style={styles.movieInfo}>
-          {/* Title */}
-          <Text style={styles.title}>{movie.name}</Text>
+          {/* Título */}
+          <Text style={styles.title} numberOfLines={2}>{movie.name}</Text>
           
-          {/* Meta Info */}
-          <View style={styles.metaContainer}>
+          {/* Meta informações em linha */}
+          <View style={styles.metaRow}>
+            <Text style={styles.yearText}>{getMovieYear()}</Text>
+            
+            {/* Rating */}
             <View style={styles.ratingContainer}>
-              <Icon name="star" size={16} color="#FFD700" />
+              <Icon name="star" size={14} color="#000" />
               <Text style={styles.ratingText}>{getMovieRating()}</Text>
             </View>
             
-            <Text style={styles.yearText}>{getMovieYear()}</Text>
+            {/* Duração - removido pois não existe na interface */}
             
+            {/* Badge de qualidade */}
             <View style={styles.qualityBadge}>
               <Text style={styles.qualityText}>HD</Text>
             </View>
           </View>
 
-          {/* Genre - Logo após meta info */}
-          <Text style={styles.genre}>
-            {movie.genre || 'Drama, Mistério'}
+          {/* Genre */}
+          <Text style={styles.genre} numberOfLines={1}>
+            {movie.genre || 'Ação, Drama'}
           </Text>
 
-          {/* Sinopse - Logo após genre */}
+          {/* Botão de Play principal */}
+          <TouchableOpacity
+            style={styles.playButton}
+            onPress={handlePlay}
+          >
+            <Icon name="play" size={18} color="#000" />
+            <Text style={styles.playButtonText}>Assistir</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Sinopse */}
+        <View style={styles.plotSection}>
           <Text style={styles.plot}>
-            {movie.plot || 'Uma história envolvente que combina elementos de ação e drama, explorando temas profundos através de personagens complexos e situações emocionantes que mantêm o espectador envolvido do início ao fim.'}
+            {movie.plot || 'Uma história envolvente que combina elementos de ação e drama, explorando temas profundos através de personagens complexos e situações emocionantes que mantêm o espectador envolvido do início ao fim. Esta produção oferece uma experiência cinematográfica única com visuais impressionantes e uma narrativa cativante.'}
           </Text>
+        </View>
 
-          {/* Action Buttons */}
-          <View style={styles.actionButtons}>
-            {/* Play Button */}
+        {/* Botões de ações secundárias */}
+        <View style={styles.actionButtons}>
+          <View style={styles.secondaryActions}>
             <TouchableOpacity
-              style={styles.playButton}
-              onPress={handlePlay}
+              style={styles.actionButton}
+              onPress={toggleFavorite}
             >
-              <Icon name="play" size={20} color="#000" />
-              <Text style={styles.playButtonText}>Assistir</Text>
+              <Icon 
+                name={isFavorite ? "heart" : "heart-outline"} 
+                size={24} 
+                color={isFavorite ? "#dc3545" : "#fff"} 
+              />
+              <Text style={styles.actionButtonText}>
+                {isFavorite ? 'Remover' : 'Favoritar'}
+              </Text>
             </TouchableOpacity>
-            
-            {/* Secondary Actions */}
-            <View style={styles.secondaryActions}>
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={toggleFavorite}
-              >
-                <Icon 
-                  name={isFavorite ? "heart" : "heart-outline"} 
-                  size={24} 
-                  color={isFavorite ? "#FF6B35" : "#fff"} 
-                />
-                <Text style={styles.actionButtonText}>
-                  {isFavorite ? 'Remover' : 'Minha Lista'}
-                </Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={handleShare}
-              >
-                <Icon name="share-outline" size={24} color="#fff" />
-                <Text style={styles.actionButtonText}>Compartilhar</Text>
-              </TouchableOpacity>
-            </View>
+
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={handleDownload}
+            >
+              <Icon name="download-outline" size={24} color="#fff" />
+              <Text style={styles.actionButtonText}>Download</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={handleShare}
+            >
+              <Icon name="share-outline" size={24} color="#fff" />
+              <Text style={styles.actionButtonText}>Compartilhar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Seção de informações */}
+        <View style={styles.castSection}>
+          <Text style={styles.sectionTitle}>Informações</Text>
+          
+          <View style={styles.castItem}>
+            <Text style={styles.castLabel}>Diretor:</Text>
+            <Text style={styles.castValue}>
+              {movie.director || 'Christopher Nolan'}
+            </Text>
           </View>
 
-          {/* Elenco e Produção - IGUAL SERIESDETAILSSCREEN */}
-          <View style={styles.castSection}>
-            <Text style={styles.sectionTitle}>Elenco e Produção</Text>
-            
-            <View style={styles.castItem}>
-              <Text style={styles.castLabel}>Elenco:</Text>
-              <Text style={styles.castValue}>
-                {movie.cast || 'Matthew McConaughey, Anne Hathaway, Jessica Chastain, Bill Irwin, Ellen Burstyn'}
-              </Text>
-            </View>
-            
-            <View style={styles.castItem}>
-              <Text style={styles.castLabel}>Direção:</Text>
-              <Text style={styles.castValue}>
-                {movie.director || 'Christopher Nolan'}
-              </Text>
-            </View>
+          <View style={styles.castItem}>
+            <Text style={styles.castLabel}>Elenco:</Text>
+            <Text style={styles.castValue}>
+              {movie.cast || 'Matthew McConaughey, Anne Hathaway, Jessica Chastain'}
+            </Text>
+          </View>
+
+          <View style={styles.castItem}>
+            <Text style={styles.castLabel}>Gênero:</Text>
+            <Text style={styles.castValue}>
+              {movie.genre || 'Ficção Científica, Drama, Aventura'}
+            </Text>
+          </View>
+
+          <View style={styles.castItem}>
+            <Text style={styles.castLabel}>Duração:</Text>
+            <Text style={styles.castValue}>2h 49m</Text>
           </View>
         </View>
       </ScrollView>
@@ -258,28 +280,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#1a1a1a',
   },
-  imageContainer: {
-    height: height * 0.6,
-    position: 'relative',
-  },
-  backgroundImage: {
-    width: '100%',
-    height: '100%',
-  },
-  placeholderImage: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#2a2a2a',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  gradientOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: '100%',
-  },
+  // Header sobreposto apenas na imagem
   header: {
     position: 'absolute',
     top: 0,
@@ -308,48 +309,74 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  content: {
+  // Container scrollável
+  scrollContainer: {
     flex: 1,
-    marginTop: -100,
-    zIndex: 5,
   },
   scrollContent: {
     paddingBottom: 50,
   },
+  // Imagem do filme - SEM conteúdo sobreposto
+  imageContainer: {
+    width: width,
+    backgroundColor: '#1a1a1a',
+    overflow: 'hidden',
+    // Remove altura fixa para que se adapte ao conteúdo
+  },
+  movieImage: {
+    width: width, // Largura total da tela
+    aspectRatio: 3/4, // Proporção levemente menor que 2/3
+  },
+  placeholderImage: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#2a2a2a',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  // Informações do filme - SEPARADAS da imagem
   movieInfo: {
+    backgroundColor: '#1a1a1a',
     paddingHorizontal: 20,
     paddingTop: 20,
+    paddingBottom: 16,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '800',
     color: '#fff',
     marginBottom: 12,
-    lineHeight: 34,
+    lineHeight: 28,
   },
-  metaContainer: {
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
     flexWrap: 'wrap',
+  },
+  yearText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+    marginRight: 12,
   },
   ratingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 215, 0, 0.2)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    backgroundColor: '#FFD700',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 4,
     marginRight: 12,
   },
   ratingText: {
-    color: '#FFD700',
+    color: '#000',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
     marginLeft: 4,
   },
-  yearText: {
-    color: '#ccc',
+  durationText: {
+    color: '#fff',
     fontSize: 16,
     fontWeight: '500',
     marginRight: 12,
@@ -366,18 +393,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   genre: {
-    color: '#999',
-    fontSize: 14,
-    marginBottom: 16,
-  },
-  plot: {
-    color: '#ddd',
+    color: '#ccc',
     fontSize: 16,
-    lineHeight: 24,
-    marginBottom: 24,
-  },
-  actionButtons: {
-    marginBottom: 30,
+    marginBottom: 16,
   },
   playButton: {
     backgroundColor: '#fff',
@@ -385,14 +403,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    borderRadius: 8,
-    marginBottom: 16,
+    paddingHorizontal: 32,
+    borderRadius: 6,
+    alignSelf: 'stretch',
   },
   playButtonText: {
     color: '#000',
     fontSize: 16,
     fontWeight: '700',
     marginLeft: 8,
+  },
+  // Sinopse
+  plotSection: {
+    paddingHorizontal: 20,
+    marginBottom: 24,
+  },
+  plot: {
+    color: '#ddd',
+    fontSize: 16,
+    lineHeight: 24,
+  },
+  // Botões de ação
+  actionButtons: {
+    paddingHorizontal: 20,
+    marginBottom: 30,
   },
   secondaryActions: {
     flexDirection: 'row',
@@ -401,14 +435,17 @@ const styles = StyleSheet.create({
   actionButton: {
     alignItems: 'center',
     flex: 1,
+    paddingVertical: 8,
   },
   actionButtonText: {
     color: '#fff',
     fontSize: 12,
-    marginTop: 4,
+    marginTop: 6,
     textAlign: 'center',
   },
+  // Informações adicionais
   castSection: {
+    paddingHorizontal: 20,
     marginBottom: 30,
   },
   sectionTitle: {
