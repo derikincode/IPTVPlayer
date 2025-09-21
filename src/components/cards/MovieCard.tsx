@@ -73,13 +73,6 @@ const MovieCard: React.FC<MovieCardProps> = ({
           colors={['transparent', 'rgba(0,0,0,0.6)']}
           style={styles.gradientOverlay}
         />
-        
-        {/* Rating badge */}
-        {movie.rating && (
-          <View style={styles.ratingBadge}>
-            <Text style={styles.ratingText}>★ {movie.rating}</Text>
-          </View>
-        )}
 
         {/* Content container - apenas para os cartões featured */}
         {featured && (
@@ -147,20 +140,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: '40%',
-  },
-  ratingBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  ratingText: {
-    color: '#FFD700',
-    fontSize: 12,
-    fontWeight: '600',
   },
   contentContainer: {
     position: 'absolute',

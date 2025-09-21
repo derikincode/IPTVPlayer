@@ -69,18 +69,11 @@ const SeriesListItem: React.FC<SeriesListItemProps> = ({
           </View>
         )}
         
-        {/* Gradient overlay */}
+        {/* Gradient overlay - mais sutil */}
         <LinearGradient
           colors={['transparent', 'rgba(0,0,0,0.6)']}
           style={styles.gradientOverlay}
         />
-        
-        {/* Rating badge */}
-        {series.rating && (
-          <View style={styles.ratingBadge}>
-            <Text style={styles.ratingText}>★ {series.rating}</Text>
-          </View>
-        )}
 
         {/* Series badge */}
         <View style={styles.typeBadge}>
@@ -161,28 +154,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: '40%',
-  },
-  ratingBadge: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.6,
-    shadowRadius: 2,
-    elevation: 3,
-  },
-  ratingText: {
-    color: '#FFD700',
-    fontSize: 13,
-    fontWeight: '700',
   },
   typeBadge: {
     position: 'absolute',
