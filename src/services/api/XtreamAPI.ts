@@ -7,7 +7,7 @@ import {
   VODStream,
   Series,
   EPGData,
-} from "../types";
+} from "../../types";
 
 class XtreamAPIService {
   private api: AxiosInstance;
