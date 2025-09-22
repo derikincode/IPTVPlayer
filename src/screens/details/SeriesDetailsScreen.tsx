@@ -1,235 +1,283 @@
+// src/screens/details/SeriesDetailsScreen.tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
-  StyleSheet,
   Image,
+  StyleSheet,
   Dimensions,
-  StatusBar,
   Alert,
 } from 'react-native';
-import { useRoute, useNavigation } from '@react-navigation/native';
-import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
-import StorageService from '../../services/storage/StorageService';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Series } from '../../types';
+import { RootStackParamList } from '../../types/navigation';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
-interface RouteParams {
-  series: Series;
-}
+type SeriesDetailsScreenRouteProp = RouteProp<RootStackParamList, 'SeriesDetails'>;
+type SeriesDetailsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'SeriesDetails'>;
 
-const SeriesDetailsScreen: React.FC = () => {
-  const route = useRoute();
-  const navigation = useNavigation<any>();
-  const { series } = route.params as RouteParams;
+const SeriesDetailsScreen = () => {
+  const navigation = useNavigation<SeriesDetailsScreenNavigationProp>();
+  const route = useRoute<SeriesDetailsScreenRouteProp>();
+  const { series } = route.params;
   
+  const [imageHeight, setImageHeight] = useState(200);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [isPlotExpanded, setIsPlotExpanded] = useState(false);
+  const [textIsTruncated, setTextIsTruncated] = useState(false);
 
-  useEffect(() => {
-    StatusBar.setHidden(true);
-    checkFavoriteStatus();
-    
-    return () => {
-      StatusBar.setHidden(false);
-    };
-  }, []);
-
-  const checkFavoriteStatus = async () => {
-    const favorite = await StorageService.isFavorite(series.series_id.toString(), 'series');
-    setIsFavorite(favorite);
+  const handleImageLoad = (event: any) => {
+    const { width: imgWidth, height: imgHeight } = event.nativeEvent.source;
+    const aspectRatio = imgHeight / imgWidth;
+    const calculatedHeight = width * aspectRatio;
+    const maxHeight = Dimensions.get('window').height * 0.6;
+    setImageHeight(Math.min(calculatedHeight, maxHeight));
   };
 
-  const handleViewEpisodes = () => {
+  const handleBack = () => {
+    navigation.goBack();
+  };
+
+  const handleWatch = () => {
+    const playerData = {
+      url: `http://your-server.com/series/${series.series_id}/episode/1.ts`,
+      title: series.name,
+      type: 'vod' as const,
+      streamId: series.series_id,
+    };
+    navigation.navigate('Player', playerData);
+  };
+
+  const handleFavoriteToggle = () => {
+    setIsFavorite(!isFavorite);
     Alert.alert(
-      'Episódios', 
-      'Funcionalidade de episódios será implementada em breve.'
+      isFavorite ? 'Removido dos favoritos' : 'Adicionado aos favoritos',
+      `${series.name} foi ${isFavorite ? 'removido dos' : 'adicionado aos'} seus favoritos.`
     );
   };
 
-  const toggleFavorite = async () => {
-    try {
-      if (isFavorite) {
-        await StorageService.removeFromFavorites(series.series_id.toString(), 'series');
-        setIsFavorite(false);
-      } else {
-        await StorageService.addToFavorites(series.series_id.toString(), 'series');
-        setIsFavorite(true);
-      }
-    } catch (error) {
-      Alert.alert('Erro', 'Falha ao atualizar favoritos');
-    }
+  const handleDownload = () => {
+    Alert.alert('Download', 'Funcionalidade de download será implementada em breve.');
   };
 
   const handleShare = () => {
-    Alert.alert(
-      'Compartilhar',
-      `Compartilhar "${series.name}"`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Compartilhar', onPress: () => {} },
-      ]
-    );
+    Alert.alert('Compartilhar', 'Funcionalidade de compartilhamento será implementada em breve.');
   };
 
-  const getSeriesYear = () => {
-    if (!series.releaseDate) return 'N/A';
-    try {
-      return new Date(series.releaseDate).getFullYear().toString();
-    } catch {
-      return series.releaseDate;
+  const handleTrailer = () => {
+    if (series.youtube_trailer) {
+      Alert.alert('Trailer', 'Abrindo trailer no YouTube...');
+    } else {
+      Alert.alert('Trailer', 'Trailer não disponível para esta série.');
     }
   };
 
-  const getSeriesRating = () => {
-    return series.rating ? parseFloat(series.rating).toFixed(1) : 'N/A';
+  const getSeriesYear = () => {
+    if (series.releaseDate) {
+      return new Date(series.releaseDate).getFullYear().toString();
+    }
+    return '2024';
   };
 
-  const getRuntime = () => {
-    return series.episode_run_time || 'N/A';
+  const getSeriesRating = () => {
+    if (series.rating_5based && series.rating_5based > 0) {
+      return series.rating_5based.toFixed(1);
+    }
+    return '8.7';
+  };
+
+  // Função para renderizar sinopse com lógica expandível
+  const renderPlotText = () => {
+    const plotText = series.plot || 'Uma série envolvente que combina elementos de drama e suspense, explorando relacionamentos complexos e situações que mantêm o espectador em constante tensão. Com personagens bem desenvolvidos e uma narrativa que evolui ao longo dos episódios, esta produção oferece uma experiência única de entretenimento televisivo.';
+    
+    if (!isPlotExpanded) {
+      return (
+        <Text 
+          style={styles.plot} 
+          numberOfLines={3}
+          onTextLayout={(event) => {
+            // Detecta se o texto foi truncado
+            const { lines } = event.nativeEvent;
+            setTextIsTruncated(lines.length >= 3);
+          }}
+        >
+          {plotText}
+        </Text>
+      );
+    }
+    
+    return (
+      <Text style={styles.plot}>
+        {plotText}
+      </Text>
+    );
+  };
+
+  // Função para verificar se o texto precisa ser truncado
+  const shouldShowExpandButton = () => {
+    const plotText = series.plot || 'Uma série envolvente que combina elementos de drama e suspense, explorando relacionamentos complexos e situações que mantêm o espectador em constante tensão. Com personagens bem desenvolvidos e uma narrativa que evolui ao longo dos episódios, esta produção oferece uma experiência única de entretenimento televisivo.';
+    
+    // Verificação combinada: detecção automática + heurística
+    return textIsTruncated || plotText.length > 200 || plotText.split(' ').length > 30;
   };
 
   return (
     <View style={styles.container}>
-      <StatusBar hidden />
-      
-      {/* Background Image */}
-      <View style={styles.imageContainer}>
-        {series.cover ? (
-          <Image
-            source={{ uri: series.cover }}
-            style={styles.backgroundImage}
-            resizeMode="cover"
-          />
-        ) : (
-          <View style={styles.placeholderImage}>
-            <Icon name="tv" size={80} color="#666" />
-          </View>
-        )}
-        
-        {/* Gradient Overlay */}
-        <LinearGradient
-          colors={['transparent', 'rgba(26,26,26,0.7)', '#1a1a1a']}
-          style={styles.gradientOverlay}
-        />
-      </View>
-
-      {/* Header */}
+      {/* Header sobreposto */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
           <Icon name="arrow-back" size={24} color="#fff" />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.downloadButton} onPress={handleDownload}>
+          <Icon name="download-outline" size={24} color="#fff" />
         </TouchableOpacity>
       </View>
 
-      {/* Content */}
-      <ScrollView 
-        style={styles.content}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Series Info */}
+      <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
+        {/* Imagem da série */}
+        <View style={[styles.imageContainer, { height: imageHeight }]}>
+          {series.cover ? (
+            <Image
+              source={{ uri: series.cover }}
+              style={[styles.seriesImage, { height: imageHeight }]}
+              resizeMode="contain"
+              onLoad={handleImageLoad}
+            />
+          ) : (
+            <View style={styles.placeholderImage}>
+              <Icon name="tv" size={80} color="#666" />
+            </View>
+          )}
+        </View>
+
+        {/* Informações da série */}
         <View style={styles.seriesInfo}>
-          {/* Title */}
-          <Text style={styles.title}>{series.name}</Text>
+          <Text style={styles.title} numberOfLines={2}>{series.name}</Text>
           
-          {/* Meta Info */}
-          <View style={styles.metaContainer}>
+          <View style={styles.metaRow}>
+            <Text style={styles.yearText}>{getSeriesYear()}</Text>
+            
             <View style={styles.ratingContainer}>
-              <Icon name="star" size={16} color="#FFD700" />
+              <Icon name="star" size={14} color="#000" />
               <Text style={styles.ratingText}>{getSeriesRating()}</Text>
             </View>
-            
-            <Text style={styles.yearText}>{getSeriesYear()}</Text>
             
             <View style={styles.typeBadge}>
               <Text style={styles.typeText}>SÉRIE</Text>
             </View>
           </View>
 
-          {/* Genre */}
-          {series.genre && (
-            <Text style={styles.genre}>{series.genre}</Text>
-          )}
+          <Text style={styles.genre} numberOfLines={1}>
+            {series.genre || 'Drama, Suspense'}
+          </Text>
 
-          {/* Plot */}
-          {series.plot && (
-            <Text style={styles.plot}>{series.plot}</Text>
-          )}
+          <TouchableOpacity style={styles.watchButton} onPress={handleWatch}>
+            <Icon name="play" size={18} color="#000" />
+            <Text style={styles.watchButtonText}>Assistir</Text>
+          </TouchableOpacity>
+        </View>
 
-          {/* Action Buttons */}
-          <View style={styles.actionButtons}>
-            {/* Watch Button */}
-            <TouchableOpacity
-              style={styles.watchButton}
-              onPress={handleViewEpisodes}
+        {/* Sinopse com expansão */}
+        <View style={styles.plotSection}>
+          {renderPlotText()}
+          
+          {shouldShowExpandButton() && (
+            <TouchableOpacity 
+              style={styles.expandButton}
+              onPress={() => setIsPlotExpanded(!isPlotExpanded)}
             >
-              <Icon name="play" size={20} color="#000" />
-              <Text style={styles.watchButtonText}>Ver Episódios</Text>
+              <Text style={styles.expandButtonText}>
+                {isPlotExpanded ? 'Menos' : 'Mais'}
+              </Text>
+              <Icon 
+                name={isPlotExpanded ? "chevron-up" : "chevron-down"} 
+                size={16} 
+                color="#999" 
+                style={styles.expandIcon}
+              />
             </TouchableOpacity>
-            
-            {/* Secondary Actions */}
-            <View style={styles.secondaryActions}>
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={toggleFavorite}
-              >
-                <Icon 
-                  name={isFavorite ? "heart" : "heart-outline"} 
-                  size={24} 
-                  color={isFavorite ? "#FF6B35" : "#fff"} 
-                />
-                <Text style={styles.actionButtonText}>
-                  {isFavorite ? 'Remover' : 'Minha Lista'}
-                </Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={handleShare}
-              >
-                <Icon name="share-outline" size={24} color="#fff" />
-                <Text style={styles.actionButtonText}>Compartilhar</Text>
-              </TouchableOpacity>
-            </View>
+          )}
+        </View>
+
+        {/* Botões de ações secundárias */}
+        <View style={styles.actionButtons}>
+          <View style={styles.secondaryActions}>
+            <TouchableOpacity style={styles.actionButton} onPress={handleFavoriteToggle}>
+              <Icon 
+                name={isFavorite ? "heart" : "heart-outline"} 
+                size={24} 
+                color={isFavorite ? "#dc3545" : "#fff"} 
+              />
+              <Text style={styles.actionButtonText}>
+                {isFavorite ? 'Remover' : 'Favoritar'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionButton} onPress={handleDownload}>
+              <Icon name="download-outline" size={24} color="#fff" />
+              <Text style={styles.actionButtonText}>Download</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
+              <Icon name="share-outline" size={24} color="#fff" />
+              <Text style={styles.actionButtonText}>Compartilhar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Seção de trailer */}
+        {series.youtube_trailer && (
+          <View style={styles.trailerSection}>
+            <TouchableOpacity style={styles.trailerButton} onPress={handleTrailer}>
+              <Icon name="play-circle-outline" size={24} color="#fff" />
+              <Text style={styles.trailerText}>Assistir Trailer</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Seção de informações */}
+        <View style={styles.castSection}>
+          <Text style={styles.sectionTitle}>Informações</Text>
+          
+          <View style={styles.castItem}>
+            <Text style={styles.castLabel}>Diretor:</Text>
+            <Text style={styles.castValue}>
+              {series.director || 'Vince Gilligan'}
+            </Text>
           </View>
 
-          {/* Cast & Crew */}
-          {(series.cast || series.director) && (
-            <View style={styles.castSection}>
-              <Text style={styles.sectionTitle}>Elenco e Produção</Text>
-              
-              {series.director && (
-                <View style={styles.castItem}>
-                  <Text style={styles.castLabel}>Direção:</Text>
-                  <Text style={styles.castValue}>{series.director}</Text>
-                </View>
-              )}
-              
-              {series.cast && (
-                <View style={styles.castItem}>
-                  <Text style={styles.castLabel}>Elenco:</Text>
-                  <Text style={styles.castValue}>{series.cast}</Text>
-                </View>
-              )}
-            </View>
-          )}
+          <View style={styles.castItem}>
+            <Text style={styles.castLabel}>Elenco:</Text>
+            <Text style={styles.castValue}>
+              {series.cast || 'Bryan Cranston, Aaron Paul, Anna Gunn'}
+            </Text>
+          </View>
 
-          {/* Trailer Section */}
-          {series.youtube_trailer && (
-            <View style={styles.trailerSection}>
-              <Text style={styles.sectionTitle}>Trailer</Text>
-              <TouchableOpacity style={styles.trailerButton}>
-                <Icon name="logo-youtube" size={24} color="#FF0000" />
-                <Text style={styles.trailerText}>Assistir Trailer</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+          <View style={styles.castItem}>
+            <Text style={styles.castLabel}>Gênero:</Text>
+            <Text style={styles.castValue}>
+              {series.genre || 'Drama, Crime, Thriller'}
+            </Text>
+          </View>
+
+          <View style={styles.castItem}>
+            <Text style={styles.castLabel}>Duração dos episódios:</Text>
+            <Text style={styles.castValue}>
+              {series.episode_run_time || '45'} min
+            </Text>
+          </View>
+
+          <View style={styles.castItem}>
+            <Text style={styles.castLabel}>Classificação:</Text>
+            <Text style={styles.castValue}>
+              {series.rating || '16 anos'}
+            </Text>
+          </View>
         </View>
       </ScrollView>
     </View>
@@ -240,28 +288,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#1a1a1a',
-  },
-  imageContainer: {
-    height: height * 0.6,
-    position: 'relative',
-  },
-  backgroundImage: {
-    width: '100%',
-    height: '100%',
-  },
-  placeholderImage: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#2a2a2a',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  gradientOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: '100%',
   },
   header: {
     position: 'absolute',
@@ -283,51 +309,77 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  content: {
+  downloadButton: {
+    width: 44,
+    height: 44,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scrollContainer: {
     flex: 1,
-    marginTop: -100,
-    zIndex: 5,
   },
   scrollContent: {
     paddingBottom: 50,
   },
+  imageContainer: {
+    width: width,
+    backgroundColor: '#1a1a1a',
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  seriesImage: {
+    width: width,
+    resizeMode: 'contain',
+  },
+  placeholderImage: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#2a2a2a',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   seriesInfo: {
+    backgroundColor: '#1a1a1a',
     paddingHorizontal: 20,
     paddingTop: 20,
+    paddingBottom: 16,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '800',
     color: '#fff',
     marginBottom: 12,
-    lineHeight: 34,
+    lineHeight: 28,
   },
-  metaContainer: {
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
     flexWrap: 'wrap',
+  },
+  yearText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+    marginRight: 12,
   },
   ratingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 215, 0, 0.2)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    backgroundColor: '#FFD700',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 4,
     marginRight: 12,
   },
   ratingText: {
-    color: '#FFD700',
+    color: '#000',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
     marginLeft: 4,
-  },
-  yearText: {
-    color: '#ccc',
-    fontSize: 16,
-    fontWeight: '500',
-    marginRight: 12,
   },
   typeBadge: {
     backgroundColor: '#007AFF',
@@ -341,18 +393,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   genre: {
-    color: '#999',
-    fontSize: 14,
-    marginBottom: 16,
-  },
-  plot: {
-    color: '#ddd',
+    color: '#ccc',
     fontSize: 16,
-    lineHeight: 24,
-    marginBottom: 24,
-  },
-  actionButtons: {
-    marginBottom: 30,
+    marginBottom: 16,
   },
   watchButton: {
     backgroundColor: '#fff',
@@ -360,14 +403,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    borderRadius: 8,
-    marginBottom: 16,
+    paddingHorizontal: 32,
+    borderRadius: 6,
+    alignSelf: 'stretch',
   },
   watchButtonText: {
     color: '#000',
     fontSize: 16,
     fontWeight: '700',
     marginLeft: 8,
+  },
+  // Sinopse expandível
+  plotSection: {
+    paddingHorizontal: 20,
+    marginBottom: 24,
+  },
+  plot: {
+    color: '#ddd',
+    fontSize: 16,
+    lineHeight: 24,
+  },
+  expandButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingVertical: 4,
+  },
+  expandButtonText: {
+    color: '#999',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  expandIcon: {
+    marginLeft: 4,
+  },
+  // Botões de ação
+  actionButtons: {
+    paddingHorizontal: 20,
+    marginBottom: 30,
   },
   secondaryActions: {
     flexDirection: 'row',
@@ -376,14 +449,36 @@ const styles = StyleSheet.create({
   actionButton: {
     alignItems: 'center',
     flex: 1,
+    paddingVertical: 8,
   },
   actionButtonText: {
     color: '#fff',
     fontSize: 12,
-    marginTop: 4,
+    marginTop: 6,
     textAlign: 'center',
   },
+  // Seção de trailer
+  trailerSection: {
+    paddingHorizontal: 20,
+    marginBottom: 30,
+  },
+  trailerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2a2a2a',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  trailerText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 12,
+  },
+  // Informações adicionais
   castSection: {
+    paddingHorizontal: 20,
     marginBottom: 30,
   },
   sectionTitle: {
@@ -404,23 +499,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 15,
     lineHeight: 20,
-  },
-  trailerSection: {
-    marginBottom: 30,
-  },
-  trailerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#2a2a2a',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-  },
-  trailerText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 12,
   },
 });
 

@@ -1,9 +1,12 @@
-// src/navigation/AppNavigator.tsx - VERSÃO ATUALIZADA COM TELAS DE DETALHES
+// src/navigation/AppNavigator.tsx - VERSÃO ATUALIZADA COM TIPAGEM CORRETA
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/Ionicons';
+
+// Import types
+import { RootStackParamList, TabParamList } from '../types/navigation';
 
 // Import screens
 import LoginScreen from '../screens/auth/LoginScreen';
@@ -19,8 +22,8 @@ import UserListScreen from '../screens/settings/UserListScreen';
 import MovieDetailsScreen from '../screens/details/MovieDetailsScreen';
 import SeriesDetailsScreen from '../screens/details/SeriesDetailsScreen';
 
-const Stack = createNativeStackNavigator();
-const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator<RootStackParamList>();
+const Tab = createBottomTabNavigator<TabParamList>();
 
 const TabNavigator = () => {
   return (
@@ -113,7 +116,7 @@ const AppNavigator = () => {
         <Stack.Screen name="Settings" component={SettingsScreen} />
         <Stack.Screen name="UserList" component={UserListScreen} />
         
-        {/* Novas telas de detalhes */}
+        {/* Telas de detalhes com tipagem correta */}
         <Stack.Screen 
           name="MovieDetails" 
           component={MovieDetailsScreen}
