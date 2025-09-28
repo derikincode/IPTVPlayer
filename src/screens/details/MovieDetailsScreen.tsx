@@ -1,5 +1,5 @@
-// src/screens/details/MovieDetailsScreen.tsx
-import React, { useState, useEffect } from 'react';
+// src/screens/details/MovieDetailsScreen.tsx - VERSÃO ESTÁVEL
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,15 +9,23 @@ import {
   StyleSheet,
   Dimensions,
   Alert,
+  Animated,
+  StatusBar,
+  Share,
+  Vibration,
+  ActivityIndicator,
+  SafeAreaView,
+  RefreshControl,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import LinearGradient from 'react-native-linear-gradient';
 import { VODStream } from '../../types';
 import { RootStackParamList } from '../../types/navigation';
 import XtreamAPI from '../../services/api/XtreamAPI';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 type MovieDetailsScreenRouteProp = RouteProp<RootStackParamList, 'MovieDetails'>;
 type MovieDetailsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'MovieDetails'>;
@@ -59,15 +67,52 @@ const MovieDetailsScreen = () => {
   const route = useRoute<MovieDetailsScreenRouteProp>();
   const { movie } = route.params;
   
-  const [imageHeight, setImageHeight] = useState(200);
-  const [isFavorite, setIsFavorite] = useState(false);
-  const [isPlotExpanded, setIsPlotExpanded] = useState(false);
-  const [textIsTruncated, setTextIsTruncated] = useState(false);
+  // Estados
   const [movieInfo, setMovieInfo] = useState<MovieInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [isPlotExpanded, setIsPlotExpanded] = useState(false);
+  const [showFullCast, setShowFullCast] = useState(false);
+
+  // Animações
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  const headerOpacity = useRef(new Animated.Value(0)).current;
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    StatusBar.setBarStyle('light-content');
+    StatusBar.setBackgroundColor('transparent', true);
     loadMovieInfo();
+    
+    // Animação de entrada
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    return () => {
+      StatusBar.setBarStyle('default');
+    };
+  }, []);
+
+  // Animação do header baseada no scroll
+  useEffect(() => {
+    const listener = scrollY.addListener(({ value }) => {
+      const opacity = Math.min(value / 200, 1);
+      headerOpacity.setValue(opacity);
+    });
+
+    return () => scrollY.removeListener(listener);
   }, []);
 
   const loadMovieInfo = async () => {
@@ -81,7 +126,6 @@ const MovieDetailsScreen = () => {
       setMovieInfo(info);
     } catch (error) {
       console.error('❌ Erro ao carregar informações do filme:', error);
-      // Usar dados básicos do movie se falhar
       Alert.alert(
         'Aviso',
         'Não foi possível carregar todas as informações do filme. Exibindo dados básicos.',
@@ -92,153 +136,62 @@ const MovieDetailsScreen = () => {
     }
   };
 
-  const handleImageLoad = (event: any) => {
-    const { width: imgWidth, height: imgHeight } = event.nativeEvent.source;
-    const aspectRatio = imgHeight / imgWidth;
-    const calculatedHeight = width * aspectRatio;
-    const maxHeight = Dimensions.get('window').height * 0.6;
-    setImageHeight(Math.min(calculatedHeight, maxHeight));
-  };
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    await loadMovieInfo();
+    setRefreshing(false);
+  }, []);
 
-  const handleBack = () => {
-    navigation.goBack();
-  };
-
-  const handlePlay = () => {
-    try {
-      const playerData = {
-        url: XtreamAPI.getVODURL(movie.stream_id, movie.container_extension),
-        title: getMovieTitle(),
-        type: 'vod' as const,
-        streamId: movie.stream_id,
-      };
-      
-      console.log('▶️ Iniciando reprodução:', playerData);
-      navigation.navigate('Player', playerData);
-    } catch (error) {
-      console.error('❌ Erro ao reproduzir filme:', error);
-      Alert.alert('Erro', 'Não foi possível reproduzir este filme.');
-    }
-  };
-
-  const handleFavoriteToggle = () => {
-    setIsFavorite(!isFavorite);
-    Alert.alert(
-      isFavorite ? 'Removido dos favoritos' : 'Adicionado aos favoritos',
-      `${getMovieTitle()} foi ${isFavorite ? 'removido dos' : 'adicionado aos'} seus favoritos.`
-    );
-  };
-
-  const handleDownload = () => {
-    Alert.alert(
-      'Download',
-      'Funcionalidade de download será implementada em breve.\n\nEm desenvolvimento para próximas versões.',
-      [{ text: 'OK' }]
-    );
-  };
-
-  const handleShare = () => {
-    Alert.alert(
-      'Compartilhar',
-      'Funcionalidade de compartilhamento será implementada em breve.\n\nEm desenvolvimento para próximas versões.',
-      [{ text: 'OK' }]
-    );
-  };
-
-  // Funções para obter dados reais da API
+  // Funções auxiliares
   const getMovieTitle = () => {
     return movieInfo?.info?.name || movie.name || 'Título não disponível';
   };
 
   const getMovieYear = () => {
     if (movieInfo?.info?.releasedate) {
-      try {
-        const year = new Date(movieInfo.info.releasedate).getFullYear();
-        if (!isNaN(year) && year > 1900) {
-          return year.toString();
-        }
-      } catch (error) {
-        console.log('⚠️ Erro ao processar data de lançamento:', error);
-      }
+      const year = new Date(movieInfo.info.releasedate).getFullYear();
+      return year.toString();
     }
     
     if (movie.added) {
       try {
         const year = new Date(parseInt(movie.added) * 1000).getFullYear();
-        if (!isNaN(year) && year > 1900) {
-          return year.toString();
-        }
-      } catch (error) {
-        console.log('⚠️ Erro ao processar data de adição:', error);
+        return year.toString();
+      } catch {
+        return 'N/A';
       }
     }
     
-    return '2024';
+    return 'N/A';
   };
 
   const getMovieRating = () => {
-    // Primeiro tenta o rating da API detalhada
-    if (movieInfo?.info?.rating) {
-      const rating = parseFloat(movieInfo.info.rating);
-      if (!isNaN(rating) && rating > 0) {
-        return rating.toFixed(1);
-      }
+    const rating = movieInfo?.info?.rating || movie.rating;
+    if (rating && rating !== '0' && rating !== '0.0') {
+      const numRating = parseFloat(rating);
+      return numRating > 10 ? (numRating / 10).toFixed(1) : numRating.toFixed(1);
     }
-    
-    // Depois tenta o rating básico
-    if (movie.rating_5based && movie.rating_5based > 0) {
-      return movie.rating_5based.toFixed(1);
-    }
-    
-    // Se tem rating em string, tenta converter
-    if (movie.rating) {
-      const rating = parseFloat(movie.rating);
-      if (!isNaN(rating) && rating > 0) {
-        return rating.toFixed(1);
-      }
-    }
-    
-    return '8.5';
+    return '7.5';
   };
 
   const getMoviePlot = () => {
-    const plot = movieInfo?.info?.plot || movie.plot;
-    
-    if (!plot || plot.trim() === '') {
-      return 'Sinopse não disponível no momento.';
-    }
-    
-    return plot.trim();
+    const plot = movieInfo?.info?.plot;
+    return plot && plot.trim() !== '' ? plot.trim() : 'Sinopse não disponível para este filme.';
   };
 
   const getMovieGenre = () => {
-    const genre = movieInfo?.info?.genre || movie.genre;
-    return genre && genre.trim() !== '' ? genre.trim() : 'Não informado';
+    const genre = movieInfo?.info?.genre;
+    return genre && genre.trim() !== '' ? genre.trim() : 'Gênero não informado';
   };
 
   const getMovieDirector = () => {
-    const director = movieInfo?.info?.director || movie.director;
+    const director = movieInfo?.info?.director;
     return director && director.trim() !== '' ? director.trim() : 'Não informado';
   };
 
   const getMovieCast = () => {
-    const cast = movieInfo?.info?.cast || movie.cast;
-    return cast && cast.trim() !== '' ? cast.trim() : 'Não informado';
-  };
-
-  const getMovieCountry = () => {
-    const country = movieInfo?.info?.country;
-    return country && country.trim() !== '' ? country.trim() : null;
-  };
-
-  const getMovieLanguage = () => {
-    const language = movieInfo?.info?.language;
-    return language && language.trim() !== '' ? language.trim() : null;
-  };
-
-  const getMovieAgeRating = () => {
-    const ageRating = movieInfo?.info?.age_rating;
-    return ageRating && ageRating.trim() !== '' ? ageRating.trim() : null;
+    const cast = movieInfo?.info?.cast;
+    return cast && cast.trim() !== '' ? cast.trim() : 'Elenco não informado';
   };
 
   const getMovieDuration = () => {
@@ -258,11 +211,10 @@ const MovieDetailsScreen = () => {
       }
     }
     
-    return 'Não informado';
+    return '120m';
   };
 
   const getMovieImage = (): string | null => {
-    // Prioridade: movie_image da API > backdrop_path > stream_icon básico
     if (movieInfo?.info?.movie_image) {
       return XtreamAPI.getImageURL(movieInfo.info.movie_image);
     }
@@ -279,217 +231,323 @@ const MovieDetailsScreen = () => {
   };
 
   const getQualityBadge = () => {
-    // Baseado na extensão do container
-    const extension = movie.container_extension?.toLowerCase();
+    const extension = movieInfo?.movie_data?.container_extension || movie.container_extension || '';
     
-    switch (extension) {
-      case 'mkv':
-      case 'mp4':
-        return '4K';
-      case 'avi':
-        return 'HD';
-      case 'ts':
-        return 'HD';
-      default:
-        return 'HD';
+    if (extension.includes('4k') || extension.includes('uhd')) return '4K';
+    if (extension.includes('1080') || extension.includes('fhd')) return 'HD';
+    if (extension.includes('720') || extension.includes('hd')) return 'HD';
+    
+    return 'SD';
+  };
+
+  // Handlers
+  const handlePlay = () => {
+    Vibration.vibrate(50);
+    try {
+      const streamUrl = XtreamAPI.getVODURL(movie.stream_id, movie.container_extension);
+      
+      navigation.navigate('Player', {
+        url: streamUrl,
+        title: getMovieTitle(),
+        type: 'vod',
+        streamId: movie.stream_id,
+      });
+    } catch (error) {
+      console.error('Erro ao obter URL do filme:', error);
+      Alert.alert(
+        'Erro',
+        'Não foi possível reproduzir este filme. Tente novamente.',
+        [{ text: 'OK' }]
+      );
     }
   };
 
-  // Função para renderizar sinopse com lógica expandível
-  const renderPlotText = () => {
-    const plotText = getMoviePlot();
-    
-    if (!isPlotExpanded) {
-      return (
-        <Text 
-          style={styles.plot} 
-          numberOfLines={3}
-          onTextLayout={(event) => {
-            // Detecta se o texto foi truncado
-            const { lines } = event.nativeEvent;
-            setTextIsTruncated(lines.length >= 3);
-          }}
-        >
-          {plotText}
-        </Text>
-      );
-    }
-    
-    return (
-      <Text style={styles.plot}>
-        {plotText}
-      </Text>
+  const handleFavorite = () => {
+    Vibration.vibrate(50);
+    setIsFavorite(!isFavorite);
+  };
+
+  const handleDownload = () => {
+    Vibration.vibrate(50);
+    Alert.alert(
+      'Download',
+      'Funcionalidade de download será implementada em breve.',
+      [{ text: 'OK' }]
     );
   };
 
-  // Função para verificar se o texto precisa ser truncado
-  const shouldShowExpandButton = () => {
-    const plotText = getMoviePlot();
+  const handleShare = async () => {
+    try {
+      await Share.share({
+        message: `Confira este filme: ${getMovieTitle()} (${getMovieYear()})`,
+        title: getMovieTitle(),
+      });
+    } catch (error) {
+      console.error('Erro ao compartilhar:', error);
+    }
+  };
+
+  const renderPlotText = () => {
+    const plot = getMoviePlot();
+    const plotLimit = 150;
+    const shouldTruncate = plot.length > plotLimit;
     
-    // Verificação combinada: detecção automática + heurística
-    return textIsTruncated || plotText.length > 200 || plotText.split(' ').length > 30;
+    return (
+      <View>
+        <Text style={styles.plot}>
+          {isPlotExpanded || !shouldTruncate ? plot : `${plot.substring(0, plotLimit)}...`}
+        </Text>
+        
+        {shouldTruncate && (
+          <TouchableOpacity 
+            style={styles.expandButton}
+            onPress={() => setIsPlotExpanded(!isPlotExpanded)}
+          >
+            <Text style={styles.expandButtonText}>
+              {isPlotExpanded ? 'Mostrar menos' : 'Mostrar mais'}
+            </Text>
+            <Icon 
+              name={isPlotExpanded ? "chevron-up" : "chevron-down"} 
+              size={16} 
+              color="#007AFF" 
+              style={styles.expandIcon}
+            />
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
+
+  const renderCastSection = () => {
+    const cast = getMovieCast();
+    if (cast === 'Elenco não informado') return null;
+
+    const castList = cast.split(',').map(actor => actor.trim());
+    const displayCast = showFullCast ? castList : castList.slice(0, 3);
+
+    return (
+      <View style={styles.infoSection}>
+        <Text style={styles.sectionTitle}>Elenco</Text>
+        <View style={styles.castContainer}>
+          {displayCast.map((actor, index) => (
+            <View key={index} style={styles.castItem}>
+              <Text style={styles.castName}>{actor}</Text>
+            </View>
+          ))}
+          
+          {castList.length > 3 && (
+            <TouchableOpacity 
+              style={styles.showMoreButton}
+              onPress={() => setShowFullCast(!showFullCast)}
+            >
+              <Text style={styles.showMoreText}>
+                {showFullCast ? 'Mostrar menos' : `+${castList.length - 3} mais`}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    );
   };
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <View style={styles.loadingContent}>
-          <Icon name="film-outline" size={60} color="#666" />
-          <Text style={styles.loadingText}>Carregando informações...</Text>
-          <Text style={styles.loadingSubtext}>Aguarde um momento</Text>
-        </View>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={styles.loadingText}>Carregando informações...</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {/* Header sobreposto */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-          <Icon name="arrow-back" size={24} color="#fff" />
-        </TouchableOpacity>
+      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+      
+      {/* Header fixo sempre visível */}
+      <View style={styles.headerFixed}>
+        <SafeAreaView style={styles.headerContent}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Icon name="arrow-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          
+          <View style={styles.headerActions}>
+            <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
+              <Icon name="share-outline" size={22} color="#fff" />
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.actionButton} onPress={handleFavorite}>
+              <Icon 
+                name={isFavorite ? "heart" : "heart-outline"} 
+                size={22} 
+                color={isFavorite ? "#FF6B6B" : "#fff"} 
+              />
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
       </View>
 
-      <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
-        {/* Imagem do filme */}
-        <View style={[styles.imageContainer, { height: imageHeight }]}>
+      {/* Header com fundo animado */}
+      <Animated.View style={[styles.headerBackground, { opacity: headerOpacity }]}>
+        <LinearGradient
+          colors={['rgba(20,20,20,0.95)', 'rgba(20,20,20,0.8)', 'transparent']}
+          style={styles.headerGradient}
+        />
+      </Animated.View>
+
+      <Animated.ScrollView 
+        style={styles.scrollContainer}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false }
+        )}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#007AFF"
+            colors={['#007AFF']}
+            progressBackgroundColor="#2a2a2a"
+          />
+        }
+      >
+        {/* Hero Image */}
+        <View style={styles.heroContainer}>
           {getMovieImage() ? (
             <Image
               source={{ uri: getMovieImage() as string }}
-              style={[styles.movieImage, { height: imageHeight }]}
-              resizeMode="contain"
-              onLoad={handleImageLoad}
-              onError={() => {
-                console.log('⚠️ Erro ao carregar imagem do filme');
-              }}
+              style={styles.heroImage}
+              resizeMode="cover"
             />
           ) : (
-            <View style={styles.placeholderImage}>
+            <View style={styles.placeholderHero}>
               <Icon name="film" size={80} color="#666" />
-              <Text style={styles.placeholderText}>Imagem não disponível</Text>
             </View>
           )}
-        </View>
-
-        {/* Informações do filme */}
-        <View style={styles.movieInfo}>
-          <Text style={styles.title} numberOfLines={2}>{getMovieTitle()}</Text>
           
-          <View style={styles.metaRow}>
-            <Text style={styles.yearText}>{getMovieYear()}</Text>
+          {/* Gradient Overlay */}
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.8)', '#141414']}
+            style={styles.heroOverlay}
+          />
+          
+          {/* Movie Info Overlay */}
+          <Animated.View 
+            style={[
+              styles.heroInfo,
+              { 
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }]
+              }
+            ]}
+          >
+            <Text style={styles.heroTitle}>{getMovieTitle()}</Text>
             
-            <View style={styles.ratingContainer}>
-              <Icon name="star" size={14} color="#FFD700" />
-              <Text style={styles.ratingText}>{getMovieRating()}</Text>
-            </View>
-            
-            <View style={styles.qualityBadge}>
-              <Text style={styles.qualityText}>{getQualityBadge()}</Text>
-            </View>
-
-            {getMovieAgeRating() && (
-              <View style={styles.ageRatingBadge}>
-                <Text style={styles.ageRatingText}>{getMovieAgeRating()}</Text>
+            <View style={styles.heroMeta}>
+              <View style={styles.metaItem}>
+                <Icon name="calendar-outline" size={14} color="#ccc" />
+                <Text style={styles.metaText}>{getMovieYear()}</Text>
               </View>
-            )}
-          </View>
+              
+              <View style={styles.metaDivider} />
+              
+              <View style={styles.metaItem}>
+                <Icon name="time-outline" size={14} color="#ccc" />
+                <Text style={styles.metaText}>{getMovieDuration()}</Text>
+              </View>
+              
+              <View style={styles.metaDivider} />
+              
+              <View style={styles.qualityBadge}>
+                <Text style={styles.qualityText}>{getQualityBadge()}</Text>
+              </View>
+            </View>
 
-          <Text style={styles.genre} numberOfLines={1}>
-            {getMovieGenre()}
-          </Text>
+            <View style={styles.ratingContainer}>
+              <Icon name="star" size={16} color="#FFD700" />
+              <Text style={styles.ratingText}>{getMovieRating()}</Text>
+              <Text style={styles.ratingMaxText}>/10</Text>
+            </View>
+          </Animated.View>
+        </View>
 
-          {/* Botão principal Assistir */}
+        {/* Action Buttons */}
+        <View style={styles.actionSection}>
           <TouchableOpacity style={styles.playButton} onPress={handlePlay}>
-            <Icon name="play" size={18} color="#000" />
-            <Text style={styles.playButtonText}>Assistir</Text>
+            <Icon name="play" size={20} color="#fff" />
+            <Text style={styles.playButtonText}>Assistir Agora</Text>
           </TouchableOpacity>
 
-          {/* Botão de Download - Logo abaixo do Assistir */}
-          <TouchableOpacity style={styles.downloadButton} onPress={handleDownload}>
-            <View style={styles.downloadIconContainer}>
-              <Icon name="arrow-down" size={16} color="#fff" />
-              <View style={styles.downloadUnderline} />
-            </View>
-            <Text style={styles.downloadButtonText}>Baixar</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Sinopse com expansão */}
-        <View style={styles.plotSection}>
-          {renderPlotText()}
-          
-          {shouldShowExpandButton() && (
-            <TouchableOpacity 
-              style={styles.expandButton}
-              onPress={() => setIsPlotExpanded(!isPlotExpanded)}
-            >
-              <Text style={styles.expandButtonText}>
-                {isPlotExpanded ? 'Menos' : 'Mais'}
-              </Text>
-              <Icon 
-                name={isPlotExpanded ? "chevron-up" : "chevron-down"} 
-                size={16} 
-                color="#999" 
-                style={styles.expandIcon}
-              />
+          <View style={styles.secondaryActions}>
+            <TouchableOpacity style={styles.secondaryButton} onPress={handleDownload}>
+              <Icon name="download-outline" size={20} color="#fff" />
+              <Text style={styles.secondaryButtonText}>Baixar</Text>
             </TouchableOpacity>
-          )}
+            
+            <TouchableOpacity style={styles.secondaryButton} onPress={handleFavorite}>
+              <Icon 
+                name={isFavorite ? "heart" : "heart-outline"} 
+                size={20} 
+                color={isFavorite ? "#FF6B6B" : "#fff"} 
+              />
+              <Text style={styles.secondaryButtonText}>
+                {isFavorite ? 'Favoritado' : 'Favoritar'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* Seção de informações */}
-        <View style={styles.castSection}>
-          <Text style={styles.sectionTitle}>Informações</Text>
+        {/* Plot Section */}
+        <View style={styles.contentSection}>
+          <Text style={styles.sectionTitle}>Sinopse</Text>
+          {renderPlotText()}
+        </View>
+
+        {/* Movie Details */}
+        <View style={styles.detailsGrid}>
+          <View style={styles.detailItem}>
+            <Text style={styles.detailLabel}>Gênero</Text>
+            <Text style={styles.detailValue}>{getMovieGenre()}</Text>
+          </View>
           
-          <View style={styles.castItem}>
-            <Text style={styles.castLabel}>Diretor:</Text>
-            <Text style={styles.castValue}>
-              {getMovieDirector()}
-            </Text>
+          <View style={styles.detailItem}>
+            <Text style={styles.detailLabel}>Diretor</Text>
+            <Text style={styles.detailValue}>{getMovieDirector()}</Text>
           </View>
-
-          <View style={styles.castItem}>
-            <Text style={styles.castLabel}>Elenco:</Text>
-            <Text style={styles.castValue}>
-              {getMovieCast()}
-            </Text>
-          </View>
-
-          <View style={styles.castItem}>
-            <Text style={styles.castLabel}>Gênero:</Text>
-            <Text style={styles.castValue}>
-              {getMovieGenre()}
-            </Text>
-          </View>
-
-          {getMovieLanguage() && (
-            <View style={styles.castItem}>
-              <Text style={styles.castLabel}>Idioma:</Text>
-              <Text style={styles.castValue}>{getMovieLanguage()}</Text>
+          
+          {movieInfo?.info?.country && (
+            <View style={styles.detailItem}>
+              <Text style={styles.detailLabel}>País</Text>
+              <Text style={styles.detailValue}>{movieInfo.info.country}</Text>
+            </View>
+          )}
+          
+          {movieInfo?.info?.language && (
+            <View style={styles.detailItem}>
+              <Text style={styles.detailLabel}>Idioma</Text>
+              <Text style={styles.detailValue}>{movieInfo.info.language}</Text>
             </View>
           )}
         </View>
 
-        {/* Trailer (se disponível) */}
+        {/* Cast Section */}
+        {renderCastSection()}
+
+        {/* Trailer Section */}
         {movieInfo?.info?.youtube_trailer && (
-          <View style={styles.trailerSection}>
+          <View style={styles.contentSection}>
             <Text style={styles.sectionTitle}>Trailer</Text>
-            <TouchableOpacity 
-              style={styles.trailerButton}
-              onPress={() => {
-                Alert.alert(
-                  'Trailer',
-                  'Funcionalidade de trailer será implementada em breve.',
-                  [{ text: 'OK' }]
-                );
-              }}
-            >
-              <Icon name="play-circle" size={24} color="#fff" />
+            <TouchableOpacity style={styles.trailerButton}>
+              <Icon name="play-circle" size={24} color="#007AFF" />
               <Text style={styles.trailerButtonText}>Assistir Trailer</Text>
             </TouchableOpacity>
           </View>
         )}
-      </ScrollView>
+
+        {/* Bottom Spacing */}
+        <View style={styles.bottomSpacing} />
+      </Animated.ScrollView>
     </View>
   );
 };
@@ -500,245 +558,287 @@ const styles = StyleSheet.create({
     backgroundColor: '#141414',
   },
   loadingContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  loadingContent: {
-    alignItems: 'center',
+    backgroundColor: '#141414',
   },
   loadingText: {
     color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 16,
     marginTop: 16,
+    fontWeight: '500',
   },
-  loadingSubtext: {
-    color: '#999',
-    fontSize: 14,
-    marginTop: 8,
-  },
-  header: {
+  headerFixed: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
-    alignItems: 'center',
-    paddingTop: 50,
-    paddingHorizontal: 20,
-    paddingBottom: 10,
+    zIndex: 15,
+    paddingTop: StatusBar.currentHeight || 0,
+  },
+  headerBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 120,
     zIndex: 10,
   },
+  headerGradient: {
+    flex: 1,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+  },
   backButton: {
-    padding: 8,
+    width: 40,
+    height: 40,
     borderRadius: 20,
     backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  actionButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   scrollContainer: {
     flex: 1,
   },
-  scrollContent: {
-    paddingBottom: 20,
+  heroContainer: {
+    height: height * 0.6,
+    position: 'relative',
   },
-  imageContainer: {
+  heroImage: {
     width: '100%',
-    backgroundColor: '#1a1a1a',
-    justifyContent: 'center',
-    alignItems: 'center',
+    height: '100%',
   },
-  movieImage: {
+  placeholderHero: {
     width: '100%',
-  },
-  placeholderImage: {
-    width: '100%',
-    height: 200,
-    justifyContent: 'center',
-    alignItems: 'center',
+    height: '100%',
     backgroundColor: '#2a2a2a',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  placeholderText: {
-    color: '#666',
-    fontSize: 14,
-    marginTop: 8,
+  heroOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '60%',
   },
-  movieInfo: {
-    padding: 20,
+  heroInfo: {
+    position: 'absolute',
+    bottom: 30,
+    left: 20,
+    right: 20,
   },
-  title: {
-    color: '#fff',
-    fontSize: 26,
+  heroTitle: {
+    fontSize: 28,
     fontWeight: 'bold',
+    color: '#fff',
     marginBottom: 12,
-    lineHeight: 32,
+    textShadowColor: 'rgba(0,0,0,0.7)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
-  metaRow: {
+  heroMeta: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
-    flexWrap: 'wrap',
   },
-  yearText: {
-    color: '#999',
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  metaText: {
+    color: '#ccc',
     fontSize: 14,
-    marginRight: 15,
     fontWeight: '500',
   },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 15,
-  },
-  ratingText: {
-    color: '#fff',
-    fontSize: 14,
-    marginLeft: 4,
-    fontWeight: '600',
+  metaDivider: {
+    width: 1,
+    height: 12,
+    backgroundColor: '#666',
+    marginHorizontal: 12,
   },
   qualityBadge: {
-    backgroundColor: '#333',
+    backgroundColor: 'rgba(0,122,255,0.8)',
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 2,
     borderRadius: 4,
-    marginRight: 10,
   },
   qualityText: {
     color: '#fff',
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: 'bold',
   },
-  ageRatingBadge: {
-    backgroundColor: '#555',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
+  ratingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
-  ageRatingText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
+  ratingText: {
+    color: '#FFD700',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
-  genre: {
+  ratingMaxText: {
     color: '#999',
-    fontSize: 15,
-    marginBottom: 24,
-    fontWeight: '400',
+    fontSize: 14,
+  },
+  actionSection: {
+    padding: 20,
+    gap: 16,
   },
   playButton: {
-    backgroundColor: '#fff',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 6,
-    marginBottom: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    backgroundColor: '#007AFF',
+    paddingVertical: 16,
+    borderRadius: 12,
+    gap: 8,
   },
   playButtonText: {
-    color: '#000',
-    fontSize: 16,
-    fontWeight: '700',
-    marginLeft: 8,
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
-  downloadButton: {
-    backgroundColor: '#333',
+  secondaryActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  secondaryButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 6,
-    marginBottom: 24,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 6,
   },
-  downloadIconContainer: {
-    position: 'relative',
-    marginRight: 8,
-  },
-  downloadUnderline: {
-    position: 'absolute',
-    bottom: -2,
-    left: 2,
-    right: 2,
-    height: 2,
-    backgroundColor: '#fff',
-    borderRadius: 1,
-  },
-  downloadButtonText: {
+  secondaryButtonText: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  plotSection: {
-    paddingHorizontal: 20,
-    marginBottom: 32,
-  },
-  plot: {
-    color: '#fff',
-    fontSize: 15,
-    lineHeight: 22,
-    marginBottom: 12,
-    fontWeight: '400',
-  },
-  expandButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    paddingVertical: 4,
-  },
-  expandButtonText: {
-    color: '#999',
     fontSize: 14,
     fontWeight: '600',
   },
-  expandIcon: {
-    marginLeft: 4,
-  },
-  castSection: {
+  contentSection: {
     paddingHorizontal: 20,
-    marginBottom: 32,
+    marginBottom: 24,
   },
   sectionTitle: {
     color: '#fff',
     fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 20,
-  },
-  castItem: {
     marginBottom: 16,
   },
-  castLabel: {
-    color: '#999',
-    fontSize: 14,
-    marginBottom: 4,
-    fontWeight: '500',
-  },
-  castValue: {
-    color: '#fff',
+  plot: {
+    color: '#ccc',
     fontSize: 15,
     lineHeight: 22,
-    fontWeight: '400',
+    marginBottom: 8,
   },
-  trailerSection: {
+  expandButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+    gap: 4,
+  },
+  expandButtonText: {
+    color: '#007AFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  expandIcon: {
+    marginLeft: 2,
+  },
+  detailsGrid: {
     paddingHorizontal: 20,
-    marginBottom: 32,
+    marginBottom: 24,
+    gap: 16,
+  },
+  detailItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  detailLabel: {
+    color: '#999',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  detailValue: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'right',
+    flex: 1,
+    marginLeft: 16,
+  },
+  infoSection: {
+    paddingHorizontal: 20,
+    marginBottom: 24,
+  },
+  castContainer: {
+    gap: 8,
+  },
+  castItem: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  castName: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  showMoreButton: {
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+  },
+  showMoreText: {
+    color: '#007AFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
   trailerButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#444',
+    backgroundColor: 'rgba(0,122,255,0.1)',
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 6,
+    borderRadius: 8,
     alignSelf: 'flex-start',
+    gap: 8,
   },
   trailerButtonText: {
-    color: '#fff',
+    color: '#007AFF',
     fontSize: 14,
     fontWeight: '600',
-    marginLeft: 8,
+  },
+  bottomSpacing: {
+    height: 40,
   },
 });
 
