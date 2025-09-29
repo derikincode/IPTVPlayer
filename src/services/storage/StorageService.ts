@@ -1,5 +1,6 @@
+// src/services/storage/StorageService.ts
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { XtreamCredentials, M3UCredentials, AppSettings } from '../types';
+import { XtreamCredentials, M3UCredentials, AppSettings } from '../../types';
 
 class StorageService {
   private static readonly KEYS = {
@@ -10,6 +11,24 @@ class StorageService {
     RECENT_CHANNELS: '@iptv_recent_channels',
     APP_SETTINGS: '@iptv_app_settings',
   };
+
+  // ✅ MÉTODO GENÉRICO PARA BUSCAR CREDENCIAIS
+  async getCredentials(): Promise<XtreamCredentials | M3UCredentials | null> {
+    try {
+      const loginType = await this.getLoginType();
+      
+      if (loginType === 'xtream') {
+        return await this.getXtreamCredentials();
+      } else if (loginType === 'm3u') {
+        return await this.getM3UCredentials();
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Erro ao buscar credenciais:', error);
+      return null;
+    }
+  }
 
   // Xtream Credentials
   async saveXtreamCredentials(credentials: XtreamCredentials): Promise<void> {
@@ -73,6 +92,105 @@ class StorageService {
     }
   }
 
+  // Favorites
+  async addToFavorites(itemId: string, type: 'live' | 'vod' | 'series'): Promise<void> {
+    try {
+      const favorites = await this.getFavorites();
+      const newFavorite = {
+        id: itemId,
+        type,
+        addedAt: Date.now(),
+      };
+      
+      // Avoid duplicates
+      const exists = favorites.find(fav => fav.id === itemId && fav.type === type);
+      if (!exists) {
+        favorites.push(newFavorite);
+        await AsyncStorage.setItem(
+          StorageService.KEYS.FAVORITES,
+          JSON.stringify(favorites)
+        );
+      }
+    } catch (error) {
+      console.error('Erro ao adicionar aos favoritos:', error);
+      throw error;
+    }
+  }
+
+  async removeFromFavorites(itemId: string, type: 'live' | 'vod' | 'series'): Promise<void> {
+    try {
+      const favorites = await this.getFavorites();
+      const filtered = favorites.filter(fav => !(fav.id === itemId && fav.type === type));
+      
+      await AsyncStorage.setItem(
+        StorageService.KEYS.FAVORITES,
+        JSON.stringify(filtered)
+      );
+    } catch (error) {
+      console.error('Erro ao remover dos favoritos:', error);
+      throw error;
+    }
+  }
+
+  async getFavorites(): Promise<Array<{id: string; type: 'live' | 'vod' | 'series'; addedAt: number}>> {
+    try {
+      const favorites = await AsyncStorage.getItem(StorageService.KEYS.FAVORITES);
+      return favorites ? JSON.parse(favorites) : [];
+    } catch (error) {
+      console.error('Erro ao buscar favoritos:', error);
+      return [];
+    }
+  }
+
+  async isFavorite(itemId: string, type: 'live' | 'vod' | 'series'): Promise<boolean> {
+    try {
+      const favorites = await this.getFavorites();
+      return favorites.some(fav => fav.id === itemId && fav.type === type);
+    } catch (error) {
+      console.error('Erro ao verificar favorito:', error);
+      return false;
+    }
+  }
+
+  // Recent Channels
+  async addToRecentChannels(channelId: string, channelName: string): Promise<void> {
+    try {
+      const recent = await this.getRecentChannels();
+      const newRecent = {
+        id: channelId,
+        name: channelName,
+        watchedAt: Date.now(),
+      };
+      
+      // Remove if already exists
+      const filtered = recent.filter(channel => channel.id !== channelId);
+      
+      // Add to beginning
+      filtered.unshift(newRecent);
+      
+      // Keep only last 20
+      const limited = filtered.slice(0, 20);
+      
+      await AsyncStorage.setItem(
+        StorageService.KEYS.RECENT_CHANNELS,
+        JSON.stringify(limited)
+      );
+    } catch (error) {
+      console.error('Erro ao adicionar canal recente:', error);
+      throw error;
+    }
+  }
+
+  async getRecentChannels(): Promise<Array<{id: string; name: string; watchedAt: number}>> {
+    try {
+      const recent = await AsyncStorage.getItem(StorageService.KEYS.RECENT_CHANNELS);
+      return recent ? JSON.parse(recent) : [];
+    } catch (error) {
+      console.error('Erro ao buscar canais recentes:', error);
+      return [];
+    }
+  }
+
   // App Settings
   async saveAppSettings(settings: AppSettings): Promise<void> {
     try {
@@ -96,91 +214,6 @@ class StorageService {
     }
   }
 
-  // Favorites
-  async addToFavorites(itemId: string, type: 'live' | 'vod' | 'series'): Promise<void> {
-    try {
-      const favorites = await this.getFavorites();
-      const key = `${type}_${itemId}`;
-      
-      if (!favorites.includes(key)) {
-        favorites.push(key);
-        await AsyncStorage.setItem(
-          StorageService.KEYS.FAVORITES,
-          JSON.stringify(favorites)
-        );
-      }
-    } catch (error) {
-      console.error('Erro ao adicionar favorito:', error);
-    }
-  }
-
-  async removeFromFavorites(itemId: string, type: 'live' | 'vod' | 'series'): Promise<void> {
-    try {
-      const favorites = await this.getFavorites();
-      const key = `${type}_${itemId}`;
-      const updatedFavorites = favorites.filter(fav => fav !== key);
-      
-      await AsyncStorage.setItem(
-        StorageService.KEYS.FAVORITES,
-        JSON.stringify(updatedFavorites)
-      );
-    } catch (error) {
-      console.error('Erro ao remover favorito:', error);
-    }
-  }
-
-  async getFavorites(): Promise<string[]> {
-    try {
-      const favorites = await AsyncStorage.getItem(StorageService.KEYS.FAVORITES);
-      return favorites ? JSON.parse(favorites) : [];
-    } catch (error) {
-      console.error('Erro ao buscar favoritos:', error);
-      return [];
-    }
-  }
-
-  async isFavorite(itemId: string, type: 'live' | 'vod' | 'series'): Promise<boolean> {
-    try {
-      const favorites = await this.getFavorites();
-      const key = `${type}_${itemId}`;
-      return favorites.includes(key);
-    } catch (error) {
-      console.error('Erro ao verificar favorito:', error);
-      return false;
-    }
-  }
-
-  // Recent Channels
-  async addToRecentChannels(channelId: string, channelName: string): Promise<void> {
-    try {
-      const recent = await this.getRecentChannels();
-      const channel = { id: channelId, name: channelName, timestamp: Date.now() };
-      
-      // Remove if already exists
-      const filtered = recent.filter(ch => ch.id !== channelId);
-      
-      // Add to beginning and limit to 20 items
-      const updated = [channel, ...filtered].slice(0, 20);
-      
-      await AsyncStorage.setItem(
-        StorageService.KEYS.RECENT_CHANNELS,
-        JSON.stringify(updated)
-      );
-    } catch (error) {
-      console.error('Erro ao adicionar canal recente:', error);
-    }
-  }
-
-  async getRecentChannels(): Promise<Array<{ id: string; name: string; timestamp: number }>> {
-    try {
-      const recent = await AsyncStorage.getItem(StorageService.KEYS.RECENT_CHANNELS);
-      return recent ? JSON.parse(recent) : [];
-    } catch (error) {
-      console.error('Erro ao buscar canais recentes:', error);
-      return [];
-    }
-  }
-
   // Clear all data
   async clearAllData(): Promise<void> {
     try {
@@ -201,6 +234,34 @@ class StorageService {
       ]);
     } catch (error) {
       console.error('Erro ao limpar cache:', error);
+      throw error;
+    }
+  }
+
+  // Check if user is logged in
+  async isLoggedIn(): Promise<boolean> {
+    try {
+      const loginType = await this.getLoginType();
+      if (!loginType) return false;
+      
+      const credentials = await this.getCredentials();
+      return credentials !== null;
+    } catch (error) {
+      console.error('Erro ao verificar login:', error);
+      return false;
+    }
+  }
+
+  // Logout
+  async logout(): Promise<void> {
+    try {
+      await AsyncStorage.multiRemove([
+        StorageService.KEYS.XTREAM_CREDENTIALS,
+        StorageService.KEYS.M3U_CREDENTIALS,
+        StorageService.KEYS.LOGIN_TYPE,
+      ]);
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
       throw error;
     }
   }

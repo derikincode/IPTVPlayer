@@ -13,10 +13,11 @@ import {
 import { useRoute, useNavigation } from '@react-navigation/native';
 import Video, { VideoRef } from 'react-native-video';
 import Orientation from 'react-native-orientation-locker';
+import NetInfo from '@react-native-community/netinfo';
 import StorageService from '../../services/storage/StorageService';
 import XtreamAPI from '../../services/api/XtreamAPI';
 import AppIcon from '../../components/common/AppIcon';
-import { EPGData } from '../../types';
+import { EPGData, XtreamCredentials } from '../../types';
 
 interface RouteParams {
   url: string;
@@ -24,8 +25,6 @@ interface RouteParams {
   type: 'live' | 'vod';
   streamId?: number;
 }
-
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 const PlayerScreen: React.FC = () => {
   const route = useRoute();
@@ -41,6 +40,8 @@ const PlayerScreen: React.FC = () => {
   const [duration, setDuration] = useState(0);
   const [epgData, setEpgData] = useState<EPGData[]>([]);
   const [dimensions, setDimensions] = useState(Dimensions.get('window'));
+  const [retryCount, setRetryCount] = useState(0);
+  const [credentials, setCredentials] = useState<any>(null);
   
   // Refs para timers
   const hideControlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -49,51 +50,213 @@ const PlayerScreen: React.FC = () => {
   const controlsOpacity = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    // Forçar rotação para paisagem ao entrar no player
-    Orientation.lockToLandscape();
-    StatusBar.setHidden(true);
-    
-    // Listener para mudanças de orientação
-    const orientationListener = (orientation: string) => {
-      setDimensions(Dimensions.get('window'));
+    initializePlayer();
+    return () => {
+      cleanup();
     };
+  }, []);
 
-    // Listener para mudanças de dimensões
-    const dimensionListener = Dimensions.addEventListener('change', ({ window }) => {
-      setDimensions(window);
+  // Função para validar URL
+  const validateAndTestURL = async (testUrl: string): Promise<boolean> => {
+    try {
+      console.log('=== VALIDANDO URL ===');
+      console.log('URL:', testUrl);
+      
+      // Validação básica
+      const urlObj = new URL(testUrl);
+      if (!['http:', 'https:'].includes(urlObj.protocol)) {
+        console.error('Protocolo inválido:', urlObj.protocol);
+        return false;
+      }
+      
+      console.log('✅ URL válida, testando acessibilidade...');
+      
+      // Teste de conectividade com timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      
+      try {
+        const response = await fetch(testUrl, {
+          method: 'HEAD',
+          signal: controller.signal,
+          headers: {
+            'User-Agent': 'IPTVPlayer/1.0',
+            'Referer': (credentials as XtreamCredentials)?.host || '',
+          }
+        });
+        
+        clearTimeout(timeoutId);
+        
+        console.log('Status da resposta:', response.status);
+        
+        if (response.status >= 200 && response.status < 400) {
+          console.log('✅ URL acessível');
+          return true;
+        } else {
+          console.error('❌ Status HTTP inválido:', response.status);
+          return false;
+        }
+        
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        console.error('❌ Erro ao testar URL:', fetchError.message);
+        return false;
+      }
+      
+    } catch (error: any) {
+      console.error('❌ URL inválida:', error.message);
+      return false;
+    }
+  };
+
+  // Função para diagnosticar problemas
+  const diagnoseStreamIssues = async () => {
+    console.log('=== DIAGNÓSTICO DE PROBLEMAS ===');
+    
+    // 1. Testar conectividade
+    const netInfo = await NetInfo.fetch();
+    
+    // Verificar detalhes da conexão com type assertion segura
+    const connectionDetails = netInfo.details as any;
+    
+    console.log('Conectividade:', {
+      connected: netInfo.isConnected,
+      type: netInfo.type,
+      strength: connectionDetails?.strength || 'N/A',
+      speed: connectionDetails?.linkSpeed || 'N/A'
     });
+    
+    // 2. Testar URL específica
+    const urlValid = await validateAndTestURL(url);
+    console.log('URL acessível:', urlValid);
+    
+    // 3. Verificar formato
+    const urlLower = url.toLowerCase();
+    const hasValidExtension = ['.ts', '.m3u8', '.mp4', '.mkv', '.avi'].some(ext => 
+      urlLower.includes(ext)
+    );
+    console.log('Formato válido detectado:', hasValidExtension);
+    
+    return {
+      connectivity: netInfo.isConnected || false,
+      urlAccessible: urlValid,
+      validFormat: hasValidExtension
+    };
+  };
 
-    Orientation.addOrientationListener(orientationListener);
+  const initializePlayer = async () => {
+    try {
+      console.log('=== INICIANDO PLAYER ===');
+      
+      // 1. Verificar conectividade
+      await checkConnectivity();
+      
+      // 2. Carregar credenciais
+      const savedCredentials = await StorageService.getCredentials();
+      setCredentials(savedCredentials);
+      
+      // 3. Configurar orientação
+      Orientation.lockToLandscape();
+      StatusBar.setHidden(true);
+      
+      // 4. Configurar listeners
+      setupListeners();
+      
+      // 5. Diagnóstico
+      const diagnosis = await diagnoseStreamIssues();
+      
+      if (!diagnosis.connectivity) {
+        throw new Error('Sem conexão com a internet');
+      }
+      
+      // 6. Prosseguir com reprodução
+      await proceedWithPlayback();
+      
+    } catch (error) {
+      console.error('Erro ao inicializar player:', error);
+      handleInitializationError(error);
+    }
+  };
 
-    // Prevenir voltar com botão físico sem confirmação
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
+  const checkConnectivity = async (): Promise<void> => {
+    const netInfo = await NetInfo.fetch();
+    
+    if (!netInfo.isConnected) {
+      throw new Error('Sem conexão com a internet');
+    }
+    
+    if (netInfo.type === 'cellular') {
+      const cellularDetails = netInfo.details as any;
+      const isExpensive = cellularDetails?.isConnectionExpensive;
+      
+      if (isExpensive) {
+        return new Promise((resolve, reject) => {
+          Alert.alert(
+            'Rede Móvel',
+            'Você está usando dados móveis. O streaming pode consumir muitos dados.',
+            [
+              { text: 'Cancelar', onPress: () => reject(new Error('Cancelado pelo usuário')) },
+              { text: 'Continuar', onPress: () => resolve() }
+            ]
+          );
+        });
+      }
+    }
+  };
 
-    // Save to recent channels
+  const proceedWithPlayback = async () => {
+    console.log('=== INICIANDO REPRODUÇÃO ===');
+    
+    // Carregar EPG se necessário
+    if (type === 'live' && streamId) {
+      loadEPG();
+    }
+    
+    // Salvar em canais recentes
     if (type === 'live') {
       StorageService.addToRecentChannels(
         streamId?.toString() || url,
         title
       );
     }
-
-    // Load EPG for live channels
-    if (type === 'live' && streamId) {
-      loadEPG();
-    }
-
-    // Auto-hide controls após 4 segundos
+    
+    // Auto-hide controls
     startHideTimer();
+  };
+
+  const setupListeners = () => {
+    const orientationListener = () => {
+      setDimensions(Dimensions.get('window'));
+    };
+
+    const dimensionListener = Dimensions.addEventListener('change', ({ window }) => {
+      setDimensions(window);
+    });
+
+    Orientation.addOrientationListener(orientationListener);
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
 
     return () => {
-      // Restaurar orientação ao sair
-      Orientation.lockToPortrait();
-      StatusBar.setHidden(false);
       Orientation.removeOrientationListener(orientationListener);
       dimensionListener?.remove();
       backHandler.remove();
-      clearHideTimer();
     };
-  }, []);
+  };
+
+  const cleanup = () => {
+    Orientation.lockToPortrait();
+    StatusBar.setHidden(false);
+    clearHideTimer();
+  };
+
+  const handleInitializationError = (error: any) => {
+    const message = error.message || 'Erro ao inicializar player';
+    Alert.alert(
+      'Erro',
+      message,
+      [{ text: 'OK', onPress: () => navigation.goBack() }]
+    );
+  };
 
   const clearHideTimer = () => {
     if (hideControlsTimer.current) {
@@ -140,39 +303,96 @@ const PlayerScreen: React.FC = () => {
   };
 
   const onLoad = (data: any) => {
+    console.log('Video carregado:', data);
     setLoading(false);
     setError(false);
-    setDuration(data.duration);
+    setDuration(data.duration || 0);
+    setRetryCount(0);
   };
 
   const onError = (error: any) => {
-    console.error('Erro no player:', error);
+    console.error('=== ERRO DETALHADO DO PLAYER ===');
+    console.error('Erro completo:', JSON.stringify(error, null, 2));
+    
     setLoading(false);
     setError(true);
+    
+    // Análise específica do erro 22004
+    if (error?.error?.code === '22004' || error?.error?.errorString?.includes('22004')) {
+      console.error('=== ERRO 22004 DETECTADO ===');
+      
+      if (type === 'vod' && streamId && credentials) {
+        try {
+          const newUrl = XtreamAPI.getVODURL(streamId, 'mp4');
+          
+          Alert.alert(
+            'Erro 22004 - Stream Não Encontrado',
+            'O conteúdo pode estar temporariamente indisponível.',
+            [
+              { 
+                text: 'Tentar URL Alternativa', 
+                onPress: () => {
+                  navigation.replace('Player', {
+                    url: newUrl,
+                    title: title + ' (Alt)',
+                    type,
+                    streamId
+                  });
+                }
+              },
+              { text: 'Voltar', onPress: () => navigation.goBack() }
+            ]
+          );
+          return;
+        } catch (urlError) {
+          console.error('Erro ao regenerar URL:', urlError);
+        }
+      }
+    }
+    
+    // Tratamento padrão
+    const buttons = [];
+    
+    if (retryCount < 3) {
+      buttons.push({
+        text: `Retry (${3 - retryCount})`,
+        onPress: () => retryPlayback()
+      });
+    }
+    
+    buttons.push({
+      text: 'Voltar',
+      onPress: () => {
+        Orientation.lockToPortrait();
+        navigation.goBack();
+      }
+    });
+    
     Alert.alert(
       'Erro de Reprodução',
-      'Não foi possível reproduzir este conteúdo. Verifique sua conexão.',
-      [
-        { text: 'Tentar Novamente', onPress: () => setError(false) },
-        { 
-          text: 'Voltar', 
-          onPress: () => {
-            Orientation.lockToPortrait();
-            navigation.goBack();
-          }
-        },
-      ]
+      'Não foi possível reproduzir este conteúdo.',
+      buttons
     );
   };
 
+  const retryPlayback = () => {
+    setError(false);
+    setLoading(true);
+    setRetryCount(prev => prev + 1);
+    
+    if (videoRef.current) {
+      videoRef.current.seek(0);
+    }
+  };
+
   const onProgress = (data: any) => {
-    setCurrentTime(data.currentTime);
+    setCurrentTime(data.currentTime || 0);
   };
 
   const onBuffer = ({ isBuffering }: { isBuffering: boolean }) => {
-    if (isBuffering && !loading) {
+    if (isBuffering && !loading && !error) {
       setLoading(true);
-    } else if (!isBuffering && loading) {
+    } else if (!isBuffering && loading && !error) {
       setLoading(false);
     }
   };
@@ -204,8 +424,6 @@ const PlayerScreen: React.FC = () => {
   };
 
   const toggleControls = () => {
-    console.log('Toggle controls - showControls:', showControls);
-    
     if (showControls) {
       clearHideTimer();
       hideControls();
@@ -225,16 +443,12 @@ const PlayerScreen: React.FC = () => {
     if (type !== 'vod' || duration === 0) return;
     
     const { locationX } = event.nativeEvent;
-    const seekBarWidth = dimensions.width - 120; // Considerando padding e textos
-    const progress = Math.max(0, Math.min(1, locationX / seekBarWidth));
-    const seekTime = progress * duration;
-    
-    seekTo(seekTime);
+    const seekBarWidth = dimensions.width - 130;
+    const seekTime = (locationX / seekBarWidth) * duration;
+    seekTo(Math.max(0, Math.min(seekTime, duration)));
   };
 
-  const formatTime = (seconds: number) => {
-    if (isNaN(seconds) || seconds < 0) return '0:00';
-    
+  const formatTime = (seconds: number): string => {
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
@@ -246,30 +460,27 @@ const PlayerScreen: React.FC = () => {
   };
 
   const getCurrentEPGProgram = () => {
-    if (epgData.length === 0) return null;
+    if (!epgData.length) return null;
     
     const now = Date.now() / 1000;
-    return epgData.find(program => 
-      parseInt(program.start_timestamp) <= now && 
-      parseInt(program.stop_timestamp) > now
-    );
+    return epgData.find(program => {
+      const start = parseInt(program.start_timestamp);
+      const stop = parseInt(program.stop_timestamp);
+      return now >= start && now <= stop;
+    });
   };
 
   const getNextEPGProgram = () => {
-    if (epgData.length === 0) return null;
+    if (!epgData.length) return null;
     
     const now = Date.now() / 1000;
-    const futurePrograms = epgData.filter(program => 
-      parseInt(program.start_timestamp) > now
-    );
-    
-    return futurePrograms.sort((a, b) => 
-      parseInt(a.start_timestamp) - parseInt(b.start_timestamp)
-    )[0] || null;
+    return epgData.find(program => {
+      const start = parseInt(program.start_timestamp);
+      return start > now;
+    });
   };
 
   const changeQuality = () => {
-    clearHideTimer();
     Alert.alert(
       'Qualidade',
       'Selecione a qualidade do vídeo:',
@@ -290,13 +501,15 @@ const PlayerScreen: React.FC = () => {
         <Text style={styles.errorText}>Erro ao reproduzir conteúdo</Text>
         <Text style={styles.errorSubtext}>Verifique sua conexão e tente novamente</Text>
         <View style={styles.errorButtons}>
-          <TouchableOpacity
-            style={styles.retryButton}
-            onPress={() => setError(false)}
-          >
-            <AppIcon name="refresh" size={18} color="#fff" style={styles.retryIcon} />
-            <Text style={styles.retryButtonText}>Tentar Novamente</Text>
-          </TouchableOpacity>
+          {retryCount < 3 && (
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={retryPlayback}
+            >
+              <AppIcon name="refresh" size={18} color="#fff" style={styles.retryIcon} />
+              <Text style={styles.retryButtonText}>Tentar Novamente ({3 - retryCount})</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => {
@@ -323,7 +536,16 @@ const PlayerScreen: React.FC = () => {
       {/* Video Player */}
       <Video
         ref={videoRef}
-        source={{ uri: url }}
+        source={{ 
+          uri: url,
+          headers: {
+            'User-Agent': 'IPTVPlayer/1.0 (Android)',
+            'Referer': (credentials as XtreamCredentials)?.host || '',
+            'Accept': '*/*',
+            'Connection': 'keep-alive',
+            'Cache-Control': 'no-cache',
+          }
+        }}
         style={styles.video}
         onLoad={onLoad}
         onError={onError}
@@ -332,12 +554,38 @@ const PlayerScreen: React.FC = () => {
         paused={paused}
         resizeMode="contain"
         bufferConfig={{
-          minBufferMs: 15000,
-          maxBufferMs: 50000,
-          bufferForPlaybackMs: 2500,
-          bufferForPlaybackAfterRebufferMs: 5000,
+          minBufferMs: 5000,
+          maxBufferMs: 20000,
+          bufferForPlaybackMs: 1000,
+          bufferForPlaybackAfterRebufferMs: 2000,
         }}
         progressUpdateInterval={1000}
+        ignoreSilentSwitch="ignore"
+        mixWithOthers="duck"
+        playWhenInactive={false}
+        playInBackground={false}
+        controls={false}
+        hideShutterView={true}
+        onLoadStart={() => {
+          console.log('=== INÍCIO DO CARREGAMENTO ===');
+          setLoading(true);
+        }}
+        onReadyForDisplay={() => {
+          console.log('Video ready for display');
+          setLoading(false);
+        }}
+        onEnd={() => {
+          if (type === 'vod') {
+            Alert.alert(
+              'Reprodução Finalizada',
+              'O vídeo chegou ao fim.',
+              [
+                { text: 'Assistir Novamente', onPress: () => seekTo(0) },
+                { text: 'Voltar', onPress: () => navigation.goBack() }
+              ]
+            );
+          }
+        }}
       />
 
       {/* Touch Area for Controls */}
@@ -412,8 +660,8 @@ const PlayerScreen: React.FC = () => {
               onPress={togglePlayPause}
             >
               <AppIcon 
-                name={paused ? "play-arrow" : "pause"} 
-                size={48} 
+                name={paused ? 'play' : 'pause'} 
+                size={40} 
                 color="#fff" 
               />
             </TouchableOpacity>
@@ -430,7 +678,7 @@ const PlayerScreen: React.FC = () => {
 
           {/* Bottom Controls */}
           <View style={styles.bottomControls}>
-            {type === 'vod' && duration > 0 && (
+            {type === 'vod' ? (
               <View style={styles.progressContainer}>
                 <Text style={styles.timeText}>
                   {formatTime(currentTime)}
@@ -444,7 +692,7 @@ const PlayerScreen: React.FC = () => {
                   <View style={styles.seekBarBackground}>
                     <View 
                       style={[
-                        styles.seekBarProgress,
+                        styles.seekBarProgress, 
                         { width: `${progress * 100}%` }
                       ]} 
                     />
@@ -455,9 +703,7 @@ const PlayerScreen: React.FC = () => {
                   {formatTime(duration)}
                 </Text>
               </View>
-            )}
-
-            {type === 'live' && (
+            ) : (
               <View style={styles.liveIndicator}>
                 <View style={styles.liveDot} />
                 <Text style={styles.liveText}>AO VIVO</Text>
@@ -467,9 +713,9 @@ const PlayerScreen: React.FC = () => {
         </Animated.View>
       </TouchableOpacity>
 
-      {/* EPG Info - sempre visível quando há programa */}
-      {currentProgram && type === 'live' && !showControls && (
-        <View style={styles.epgInfo}>
+      {/* EPG Info for Live Channels */}
+      {type === 'live' && currentProgram && showControls && (
+        <View style={styles.epgContainer}>
           <View style={styles.epgCurrent}>
             <Text style={styles.epgCurrentTitle}>{currentProgram.title}</Text>
             <Text style={styles.epgCurrentTime}>
@@ -651,7 +897,7 @@ const styles = StyleSheet.create({
   liveDot: {
     width: 8,
     height: 8,
-    backgroundColor: '#ff4444',
+    backgroundColor: '#ff0000',
     borderRadius: 4,
     marginRight: 8,
   },
@@ -660,18 +906,85 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
   },
-  epgInfo: {
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000',
+    paddingHorizontal: 40,
+  },
+  errorIcon: {
+    marginBottom: 20,
+  },
+  errorText: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  errorSubtext: {
+    color: '#ccc',
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 30,
+    lineHeight: 22,
+  },
+  errorButtons: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+    minWidth: 200,
+    justifyContent: 'center',
+  },
+  retryIcon: {
+    marginRight: 8,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    minWidth: 200,
+    justifyContent: 'center',
+  },
+  backIcon: {
+    marginRight: 8,
+  },
+  backButtonText: {
+    color: '#007AFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  epgContainer: {
     position: 'absolute',
-    bottom: 20,
+    bottom: 100,
     left: 20,
     right: 20,
     backgroundColor: 'rgba(0,0,0,0.8)',
-    borderRadius: 8,
+    borderRadius: 10,
     padding: 15,
     zIndex: 50,
   },
   epgCurrent: {
-    marginBottom: 10,
+    marginBottom: 8,
   },
   epgCurrentTitle: {
     color: '#fff',
@@ -680,84 +993,22 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   epgCurrentTime: {
-    color: '#007AFF',
+    color: '#ccc',
     fontSize: 14,
   },
   epgNext: {
+    paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.2)',
-    paddingTop: 8,
   },
   epgNextLabel: {
-    color: '#aaa',
+    color: '#999',
     fontSize: 12,
     marginBottom: 2,
   },
   epgNextTitle: {
-    color: '#ddd',
-    fontSize: 14,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#1a1a1a',
-    paddingHorizontal: 40,
-  },
-  errorIcon: {
-    marginBottom: 20,
-  },
-  errorText: {
     color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  errorSubtext: {
-    color: '#aaa',
     fontSize: 14,
-    marginBottom: 30,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  errorButtons: {
-    flexDirection: 'row',
-    gap: 15,
-  },
-  retryButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 25,
-    paddingVertical: 12,
-    borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  retryIcon: {
-    marginRight: 8,
-  },
-  retryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  backButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: '#007AFF',
-    paddingHorizontal: 25,
-    paddingVertical: 12,
-    borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  backIcon: {
-    marginRight: 8,
-  },
-  backButtonText: {
-    color: '#007AFF',
-    fontSize: 16,
-    fontWeight: '500',
   },
 });
 
